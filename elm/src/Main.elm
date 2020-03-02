@@ -2,7 +2,7 @@ module Main exposing (main)
 
 import Browser
 import Dict
-import Element exposing (Element, centerX, centerY, column, el, fill, height, padding, paddingXY, paragraph, px, rgb255, row, spacing, text, width)
+import Element exposing (Element, centerX, centerY, column, el, fill, height, paragraph, px, rgb255, row, spacing, text, width)
 import Element.Background as Background
 import Element.Events as Events
 import Element.Font as Font

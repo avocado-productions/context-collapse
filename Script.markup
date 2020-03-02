@@ -1,0 +1,45 @@
+# Drinks tonight?
+
+### |> from anuj |> to dawn |> to felix
+My flight just landed. It'll probably be another 30 til I get to the hotel
+but then I was thinking of hitting the bar and finding a spot for dinner.
+Anyone else here and want to join?
+
+ -- Anuj
+
+! responses
+  {- You can change response lists by clearing and then re-adding -}
+  ? response "No thanks" |> clearTo |> to anuj ->
+    Sorry, I've got to meet up with my advisor. Say hi to Felix for me!
+
+  {- Alternatively, you can remove a recipient manually -}
+  ? response "Ugh, Felix" |> remove felix ->
+    Anuj! you know how much I hate felix. What were you thinking?
+
+    {- allows email(s) in this thread labeled "conflict" to send
+       (if other guards are also satisfied) -}
+    ! enable conflict
+
+  {- Default behvior is to reply all, Felix will move to cc
+     also demonstrates having a reply live as a separate email. -}
+  ? response "Sounds great" -> soundsgreat
+
+### soundsgreat
+Sounds great! I can't wait to see you again.
+
+Felix, I hope you can make it too!
+
+ - D
+
+### conflict |> from anuj
+Oh, crap. I still forget.
+
+I'm really sorry!
+
+ -- A
+! responses
+  ? response "Okay" ->
+    It's okay. Thanks for responding.
+  ? response "Hate this" ->
+    I hate this! Why do you keep doing this, Anuj?
+    
