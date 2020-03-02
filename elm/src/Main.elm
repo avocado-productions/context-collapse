@@ -21,7 +21,7 @@ type alias Model =
 
 
 type ThreadState
-    = Unread
+    = Unread Int
     | Unresponded
     | Responded
 
@@ -51,7 +51,7 @@ type Msg
 
 thread1 : Thread
 thread1 =
-    { state = Unread, people = "Yer Mum", emails = [], subject = "Thread 1" }
+    { state = Unread 0, people = "Yer Mum", emails = [], subject = "Thread 1" }
 
 
 thread5 : Thread
@@ -61,7 +61,7 @@ thread5 =
 
 thread6 : Thread
 thread6 =
-    { state = Unread, people = "Yer Dad", emails = [], subject = "Thread 6" }
+    { state = Unread 0, people = "Yer Dad", emails = [], subject = "Thread 6" }
 
 
 thread7 : Thread
@@ -96,7 +96,7 @@ threadC =
 
 thread2 : Thread
 thread2 =
-    { state = Unread
+    { state = Unread 0
     , emails = []
     , people = "Yer Mum"
     , subject = "Won't you take me to"
@@ -105,7 +105,7 @@ thread2 =
 
 thread3 : Thread
 thread3 =
-    { state = Unread
+    { state = Unread 0
     , emails = []
     , people = "Axl Rose, Slash, Izzy S…"
     , subject = "Paradise City"
@@ -114,7 +114,7 @@ thread3 =
 
 thread4 : Thread
 thread4 =
-    { state = Unread
+    { state = Unread 0
     , emails = []
     , people = "Yer Mum, Axl Rose"
     , subject = "Where the grass is green"
@@ -266,34 +266,16 @@ threadHeight =
 viewThreadPreview : Thread -> Element Msg
 viewThreadPreview thread =
     let
-        weight =
-            if thread.state == Unread then
-                Font.bold
-
-            else
-                Font.regular
+        (weight, bgColor, important) =
+            case thread.state of
+                Unread _ -> (Font.bold, rgb255 255 255 255, importantYes)
+                Unresponded -> (Font.regular, rgb255 240 240 240, importantYes)
+                Responded -> (Font.regular, rgb255 240 240 240, importantNo)
     in
     row
-        [ width fill
-        , height threadHeight
-        , Background.color
-            (if thread.state == Unread then
-                rgb255 255 255 255
-
-             else
-                rgb255 240 240 240
-            )
-        ]
+        [ width fill, height threadHeight, Background.color bgColor ]
         [ el [ width threadHeight, centerY ] (el [ centerX ] (Element.html starNo))
-        , el [ width threadHeight, centerY ]
-            (el [ centerX ]
-                (if thread.state /= Responded then
-                    Element.html importantYes
-
-                 else
-                    Element.html importantNo
-                )
-            )
+        , el [ width threadHeight, centerY ] (el [ centerX ] (Element.html important))
         , el [ weight, width (px 250), height fill, Element.pointer, Events.onClick (OpenThread thread) ]
             (el [ centerY ] (text thread.people))
         , el [ weight, width fill, height fill, Element.pointer, Events.onClick (OpenThread thread) ]
