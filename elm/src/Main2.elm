@@ -1,150 +1,78 @@
-module Main exposing (main)
+module Main2 exposing (main)
 
 import Browser
-import Dict
+import Cmd.Extra as C
+import Dict exposing (Dict)
 import Element exposing (Element, centerX, centerY, column, el, fill, height, paragraph, px, rgb255, row, spacing, text, width)
 import Element.Background as Background
 import Element.Events as Events
 import Element.Font as Font
+import Example
 import Html exposing (Html)
 import Html.Attributes
+import List.Extra
+import Script
+import Set exposing (Set)
 import Svg exposing (Svg)
 import Svg.Attributes
-
-
-
-type alias Model =
-    { scripts : Dict.Dict String String
-    , threads : Dict.Dict String Thread
-    , currentInbox : List Thread
-    , currentThread : Maybe Thread
-    }
-
-
-type ThreadState
-    = Unread Int
-    | Unresponded
-    | Responded
-
-
-type alias Thread =
-    { emails : List Email
-    , people : String
-    , state : ThreadState
-    , subject : String
-    }
-
-
-type alias Email =
-    { from : String
-    , time : Int
-    , to : List String
-    , cc : List String
-    , bcc : List String
-    , body : List String
-    }
-
-
-type Msg
-    = OpenThread Thread
-    | ReturnToInbox
-
-
-thread1 : Thread
-thread1 =
-    { state = Unread 0, people = "Yer Mum", emails = [], subject = "Thread 1" }
-
-
-thread5 : Thread
-thread5 =
-    { state = Unresponded, people = "Yer Dad", emails = [], subject = "Thread 5" }
-
-
-thread6 : Thread
-thread6 =
-    { state = Unread 0, people = "Yer Dad", emails = [], subject = "Thread 6" }
-
-
-thread7 : Thread
-thread7 =
-    { state = Responded, people = "Yer Mum", emails = [], subject = "Thread 7" }
-
-
-thread8 : Thread
-thread8 =
-    { state = Responded, people = "Yer Dad", emails = [], subject = "Thread 8" }
-
-
-thread9 : Thread
-thread9 =
-    { state = Unresponded, people = "Yer Mum", emails = [], subject = "Thread 9" }
-
-
-threadA : Thread
-threadA =
-    { state = Responded, people = "Yer Dad", emails = [], subject = "Thread 10" }
-
-
-threadB : Thread
-threadB =
-    { state = Responded, people = "Yer Dad", emails = [], subject = "Thread 11" }
-
-
-threadC : Thread
-threadC =
-    { state = Unresponded, people = "Yer Mum", emails = [], subject = "Thread 12" }
-
-
-thread2 : Thread
-thread2 =
-    { state = Unread 0
-    , emails = []
-    , people = "Yer Mum"
-    , subject = "Won't you take me to"
-    }
-
-
-thread3 : Thread
-thread3 =
-    { state = Unread 0
-    , emails = []
-    , people = "Axl Rose, Slash, Izzy S…"
-    , subject = "Paradise City"
-    }
-
-
-thread4 : Thread
-thread4 =
-    { state = Unread 0
-    , emails = []
-    , people = "Yer Mum, Axl Rose"
-    , subject = "Where the grass is green"
-    }
-
-
-init : Model
-init =
-    { contacts =
-        Dict.fromList
-            [ ( "rob@rob.net", "Rob Simmons" )
-            , ( "chris@phone", "Chris Martens" )
-            ]
-    , threads =
-        Dict.fromList
-            []
-    , currentInbox = [ thread1, thread2, thread3, thread4, thread5, thread6, thread7, thread8, thread9, threadA, threadB, threadC ]
-    , currentThread = Nothing
-    }
 
 
 main : Program () Model Msg
 main =
     Browser.element
-        { init = \() -> ( init, Cmd.none )
+        { init = init
         , view = view
         , update = update
         , subscriptions = subscriptions
         }
+
+
+
+-- MODEL
+
+
+type alias Model =
+    { currentThread : Maybe ActiveThread
+    , addressbook : Dict String Script.AddressbookEntry
+    , you : String
+    , script : List { enabled : Set String, used : Maybe (Set String), script : Script.ThreadScript }
+    , inbox : List ActiveThread
+    }
+
+
+type alias ActiveThread =
+    { index : Int
+    , subject : String
+    , people : List String
+    , contents : List Script.Email
+    , state : ActiveThreadState
+    }
+
+
+type ActiveThreadState
+    = Unread (List Script.EmailResponse)
+    | Unresponded (List Script.EmailResponse)
+    | Responded
+
+
+type Msg
+    = ReturnToInbox
+    | OpenThread ActiveThread
+    | DoAction Int Script.Action
+    | CheckForEnabled
+
+
+init : () -> ( Model, Cmd Msg )
+init () =
+    { currentThread = Nothing
+    , addressbook =
+        Dict.fromList
+            (List.map (\entry -> ( entry.key, entry )) Example.addressBook)
+    , you = "dawn"
+    , script = [ { enabled = Set.empty, used = Nothing, script = Example.exampleScript } ]
+    , inbox = []
+    }
+        |> C.with Cmd.none
 
 
 
@@ -154,13 +82,51 @@ main =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        OpenThread thread ->
-            ( { model | currentThread = Just thread }, Cmd.none )
-
         ReturnToInbox ->
-            ( { model | currentThread = Nothing }, Cmd.none )
+            { model | currentThread = Nothing } |> C.with Cmd.none
 
+        OpenThread thread ->
+            { model | currentThread = Just thread } |> C.with Cmd.none
 
+        DoAction index action ->
+            case action of
+                Script.Enable str ->
+                    { model
+                        | script =
+                            List.Extra.updateAt index
+                                (\script -> { script | enabled = Set.insert str script.enabled })
+                                model.script
+                    }
+                        |> C.with (C.perform CheckForEnabled)
+
+        CheckForEnabled ->
+            { model | script = model.script }
+                |> C.with Cmd.none
+
+keyEnabled key enabled used =
+    case (key, used) of
+        (Nothing, Nothing) -> Just (Set.empty) -- Root emails are enabled if no root has been published
+        (Nothing, Just _) -> Nothing -- Root emails are disabled once a root is published
+        (Just _, Nothing) -> Nothing -- No named emails are enabled until a root is published
+        (Just k, Just u) -> 
+            if (Set.member k enabled) && not (Set.member k u)
+            then Just (Set.insert k u)
+            else Nothing
+
+checkScriptForEnabledMessage : Set String -> Maybe (Set String) -> List Script.Step -> Maybe (Script.ScriptComponent, Set String)
+checkScriptForEnabledMessage enabled used script =
+    case script of
+        [] -> Nothing
+        step :: steps ->
+            case keyEnabled step.key enabled used of
+                Nothing -> checkScriptForEnabledMessage enabled used steps
+                Just newUsed -> 
+                    --- TODO ADD CONDITIONS HERE
+                    if List.length step.guards == 0
+                    then Just (step.contents, newUsed)
+                    else checkScriptForEnabledMessage enabled used steps
+
+advanceScript : 
 
 -- Subscriptions
 
@@ -248,7 +214,7 @@ leftBar =
         )
 
 
-viewInbox : List Thread -> Element Msg
+viewInbox : List ActiveThread -> Element Msg
 viewInbox threads =
     column
         [ Background.color (rgb255 200 200 200)
@@ -264,30 +230,38 @@ threadHeight =
     px 35
 
 
-viewThreadPreview : Thread -> Element Msg
+viewThreadPreview : ActiveThread -> Element Msg
 viewThreadPreview thread =
     let
-        (weight, bgColor, important) =
+        ( weight, bgColor, important ) =
             case thread.state of
-                Unread _ -> (Font.bold, rgb255 255 255 255, importantYes)
-                Unresponded -> (Font.regular, rgb255 240 240 240, importantYes)
-                Responded -> (Font.regular, rgb255 240 240 240, importantNo)
+                Unread _ ->
+                    ( Font.bold, rgb255 255 255 255, importantYes )
+
+                Unresponded _ ->
+                    ( Font.regular, rgb255 240 240 240, importantYes )
+
+                Responded ->
+                    ( Font.regular, rgb255 240 240 240, importantNo )
     in
     row
         [ width fill, height threadHeight, Background.color bgColor ]
         [ el [ width threadHeight, centerY ] (el [ centerX ] (Element.html starNo))
         , el [ width threadHeight, centerY ] (el [ centerX ] (Element.html important))
-        , el [ weight, width (px 250), height fill, Element.pointer, Events.onClick (OpenThread thread) ]
-            (el [ centerY ] (text thread.people))
-        , el [ weight, width fill, height fill, Element.pointer, Events.onClick (OpenThread thread) ]
-            (el [ centerY ] (text thread.subject))
-        , el [ weight, width (px 150), height fill, Element.alignRight, Element.pointer, Events.onClick (OpenThread thread) ]
+        , el
+            [ weight, width (px 250), height fill, Element.pointer, Events.onClick (OpenThread thread) ]
+            (el [ centerY ] (text "AAA"))
+        , el
+            [ weight, width fill, height fill, Element.pointer, Events.onClick (OpenThread thread) ]
+            (el [ centerY ] (text "BBB"))
+        , el
+            [ weight, width (px 150), height fill, Element.alignRight, Element.pointer, Events.onClick (OpenThread thread) ]
             (el [ centerY, Element.alignRight ] (text "1:15 PM"))
         , el [ width threadHeight, height threadHeight, Element.alignRight ] Element.none
         ]
 
 
-viewThread : Thread -> Element Msg
+viewThread : ActiveThread -> Element Msg
 viewThread thread =
     row [ width fill, height fill ]
         [ el [ width threadHeight, height threadHeight ] Element.none
@@ -336,7 +310,7 @@ mainPanel model =
             ]
             (case model.currentThread of
                 Nothing ->
-                    viewInbox model.currentInbox
+                    viewInbox model.inbox
 
                 Just thread ->
                     viewThread thread
