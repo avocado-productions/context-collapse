@@ -1,7 +1,9 @@
 module Assets exposing (importantNo, importantYes, starNo)
+
 import Html.Attributes
 import Svg exposing (Svg)
 import Svg.Attributes
+
 
 importantNo : Svg msg
 importantNo =
@@ -25,6 +27,7 @@ importantYes =
             ]
             []
         ]
+
 
 starNo : Svg msg
 starNo =

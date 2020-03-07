@@ -1,4 +1,4 @@
-module ScriptTypes exposing (Action(..), AddressbookEntry, Condition(..), Email, EmailResponse, ScriptComponent, Step, ThreadScript)
+module ScriptTypes exposing (Action(..), AddressbookEntry, Condition(..), Email, EmailResponse, ThreadScene, ThreadScript)
 
 
 type alias AddressbookEntry =
@@ -31,23 +31,15 @@ type alias EmailResponse =
     }
 
 
-type alias ScriptComponent =
-    { receivedEmail : Email
-    , availableResponses : List EmailResponse
-    }
-
-
-type alias Step =
-    { contents : ScriptComponent
+type alias ThreadScene =
+    { key : Maybe String
     , guards : List Condition
-    , key : Maybe String
+    , receivedEmail : Email
+    , availableResponses : List EmailResponse
     }
 
 
 type alias ThreadScript =
     { subject : String
-    , script : List Step
+    , scenes : List ThreadScene
     }
-
-
-

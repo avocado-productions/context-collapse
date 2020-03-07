@@ -7,6 +7,7 @@ import Element.Background as Background
 import Element.Events as Events
 import Element.Font as Font
 import Html exposing (Html)
+import List.Extra
 
 
 view : App.Model -> Html App.Msg
@@ -82,13 +83,13 @@ viewThreadPreview thread =
         [ el [ width threadHeight, centerY ] (el [ centerX ] (Element.html Assets.starNo))
         , el [ width threadHeight, centerY ] (el [ centerX ] (Element.html important))
         , el
-            [ weight, width (px 250), height fill, Element.pointer, Events.onClick (App.OpenThread thread) ]
+            [ weight, width (px 250), height fill, Element.pointer, Events.onClick (App.OpenThread thread.index) ]
             (el [ centerY ] (text "(todo: participants)"))
         , el
-            [ weight, width fill, height fill, Element.pointer, Events.onClick (App.OpenThread thread) ]
+            [ weight, width fill, height fill, Element.pointer, Events.onClick (App.OpenThread thread.index) ]
             (el [ centerY ] (text thread.subject))
         , el
-            [ weight, width (px 150), height fill, Element.alignRight, Element.pointer, Events.onClick (App.OpenThread thread) ]
+            [ weight, width (px 150), height fill, Element.alignRight, Element.pointer, Events.onClick (App.OpenThread thread.index) ]
             (el [ centerY, Element.alignRight ] (text "1:15 PM"))
         , el [ width threadHeight, height threadHeight, Element.alignRight ] Element.none
         ]
@@ -153,7 +154,7 @@ mainPanel model =
                     Element.none
 
                 Just activeThread ->
-                    el [ Events.onClick (App.ReturnToInbox activeThread.index), centerX, centerY, Element.pointer ] (text "<-")
+                    el [ Events.onClick (App.ReturnToInbox activeThread), centerX, centerY, Element.pointer ] (text "<-")
             )
         , el [ width fill, height (px 1), Background.color (rgb255 200 200 200) ] Element.none
         , el
@@ -161,7 +162,7 @@ mainPanel model =
             , height fill
             , Element.scrollbarY
             ]
-            (case model.currentThread of
+            (case model.currentThread |> Maybe.andThen (\i -> List.Extra.getAt i model.inbox) of
                 Nothing ->
                     viewInbox model.inbox
 

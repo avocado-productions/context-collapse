@@ -3,18 +3,13 @@ module App exposing (main)
 import AppTypes as App
 import Browser
 import Cmd.Extra as C
-import Dict exposing (Dict)
-import Element.Background as Background
-import Element.Events as Events
-import Element.Font as Font
+import Delay
+import Dict
 import Example
-import Html exposing (Html)
-import Html.Attributes
 import List.Extra
 import ScriptTypes as Script
-import Set exposing (Set)
-import Svg exposing (Svg)
-import Svg.Attributes
+import Set
+import Util
 import View
 
 
@@ -31,9 +26,17 @@ main =
 
 -- MODEL
 
-
-
-
+initScripts : List Script.ThreadScript -> List App.ActionScript
+initScripts =
+    List.indexedMap
+        (\index script ->
+            { subject = script.subject
+            , scenes = script.scenes
+            , index = index
+            , enabled = Set.empty
+            , used = Nothing
+            }
+        )
 
 
 init : () -> ( App.Model, Cmd App.Msg )
@@ -43,10 +46,11 @@ init () =
         Dict.fromList
             (List.map (\entry -> ( entry.key, entry )) Example.addressBook)
     , you = "dawn"
-    , script = [ { enabled = Set.empty, used = Nothing, script = Example.exampleScript } ]
+    , context = {}
+    , scripts = initScripts [ Example.exampleScript ]
     , inbox = []
     }
-        |> C.with (C.perform App.CheckForEnabled)
+        |> C.with (Delay.after 500 Delay.Millisecond App.CheckForEnabled)
 
 
 
@@ -56,48 +60,55 @@ init () =
 update : App.Msg -> App.Model -> ( App.Model, Cmd App.Msg )
 update msg model =
     case msg of
-        App.ReturnToInbox index ->
-            { model | currentThread = Nothing, inbox = updateInboxItsRead index model.inbox } |> C.with Cmd.none
-
-        App.OpenThread thread ->
+        App.ReturnToInbox threadIndex ->
             { model
-                | currentThread = Just thread
+                | currentThread = Nothing
+                , inbox = updateInboxBecauseThisIndexHasBeenRead threadIndex model.inbox
+            }
+                |> C.with Cmd.none
+
+        App.OpenThread threadIndex ->
+            { model
+                | currentThread = Just threadIndex
             }
                 |> C.with Cmd.none
 
         App.MakeDecision index response ->
-            { model | currentThread = Nothing, inbox = updateInboxWithResponse index response.email model.inbox }
+            { model | currentThread = Nothing, inbox = updateInboxBecauseThisIndexHasBeenRespondedTo index response.email model.inbox }
                 |> C.with (Cmd.batch (List.map (App.DoAction index >> C.perform) response.actions))
 
         App.DoAction index action ->
             case action of
                 Script.Enable str ->
                     { model
-                        | script =
+                        | scripts =
                             List.Extra.updateAt index
                                 (\script -> { script | enabled = Set.insert str script.enabled })
-                                model.script
+                                model.scripts
                     }
-                        |> C.with (C.perform App.CheckForEnabled)
+                        |> C.with (Delay.after 2 Delay.Second App.CheckForEnabled)
 
         App.CheckForEnabled ->
-            case findEnabledMessage 0 model.script of
+            case Util.findSomething (findEnabledScene model.context) model.scripts of
                 Nothing ->
                     model |> C.with Cmd.none
 
-                Just ( index, component, script ) ->
+                Just ( updatedThreadScript, enabledScene ) ->
                     { model
-                        | script = script
-                        , inbox = updateInboxWithNewIncoming index component model.inbox |> (\( x, xs ) -> x :: xs)
+                        | scripts =
+                            List.Extra.updateAt updatedThreadScript.index
+                                (\_ -> updatedThreadScript)
+                                model.scripts
+                        , inbox = updateInboxWithNewScene updatedThreadScript enabledScene model.inbox |> (\( x, xs ) -> x :: xs)
                     }
                         |> C.with Cmd.none
 
 
-updateInboxItsRead : Int -> List App.ActiveThread -> List App.ActiveThread
-updateInboxItsRead index =
+updateInboxBecauseThisIndexHasBeenRead : Int -> List App.ActiveThread -> List App.ActiveThread
+updateInboxBecauseThisIndexHasBeenRead threadIndex =
     List.map
         (\thread ->
-            if index == thread.index then
+            if threadIndex == thread.index then
                 case thread.state of
                     App.Unread responses ->
                         { thread | state = App.Unresponded responses }
@@ -110,36 +121,36 @@ updateInboxItsRead index =
         )
 
 
-updateInboxWithResponse : Int -> Script.Email -> List App.ActiveThread -> List App.ActiveThread
-updateInboxWithResponse index email =
+updateInboxBecauseThisIndexHasBeenRespondedTo : Int -> Script.Email -> List App.ActiveThread -> List App.ActiveThread
+updateInboxBecauseThisIndexHasBeenRespondedTo threadIndex newResponse =
     List.map
         (\thread ->
-            if index == thread.index then
-                { thread | state = App.Responded, contents = thread.contents ++ [ email ] }
+            if threadIndex == thread.index then
+                { thread | state = App.Responded, contents = thread.contents ++ [ newResponse ] }
 
             else
                 thread
         )
 
 
-updateInboxWithNewIncoming : ( Int, Script.ThreadScript ) -> Script.ScriptComponent -> List App.ActiveThread -> ( App.ActiveThread, List App.ActiveThread )
-updateInboxWithNewIncoming ( index, script ) component inbox =
+updateInboxWithNewScene : App.ThreadScript -> Script.ThreadScene -> List App.ActiveThread -> ( App.ActiveThread, List App.ActiveThread )
+updateInboxWithNewScene threadScript threadScene inbox =
     case inbox of
         [] ->
-            ( { index = index
-              , subject = script.subject
+            ( { index = threadScript.index
+              , subject = threadScript.subject
               , people = []
-              , contents = [ component.receivedEmail ]
-              , state = App.Unread component.availableResponses
+              , contents = [ threadScene.receivedEmail ]
+              , state = App.Unread threadScene.availableResponses
               }
             , []
             )
 
         thread :: threads ->
-            if index == thread.index then
+            if threadScript.index == thread.index then
                 ( { thread
-                    | contents = thread.contents ++ [ component.receivedEmail ]
-                    , state = App.Unread component.availableResponses
+                    | contents = thread.contents ++ [ threadScene.receivedEmail ]
+                    , state = App.Unread threadScene.availableResponses
                   }
                 , threads
                 )
@@ -147,15 +158,16 @@ updateInboxWithNewIncoming ( index, script ) component inbox =
             else
                 let
                     ( updatedThread, otherThreads ) =
-                        updateInboxWithNewIncoming ( index, script ) component threads
+                        updateInboxWithNewScene threadScript threadScene threads
                 in
                 ( updatedThread, thread :: otherThreads )
 
 
-keyEnabled key enabled used =
-    case ( key, used ) of
+sceneKeyEnabledInContext : App.ThreadScript -> Maybe String -> Maybe App.ThreadScript
+sceneKeyEnabledInContext threadContext sceneKey =
+    case ( sceneKey, threadContext.used ) of
         ( Nothing, Nothing ) ->
-            Just Set.empty
+            Just { threadContext | used = Just Set.empty }
 
         -- Root emails are enabled if no root has been published
         ( Nothing, Just _ ) ->
@@ -166,52 +178,31 @@ keyEnabled key enabled used =
             Nothing
 
         -- No named emails are enabled until a root is published
-        ( Just k, Just u ) ->
-            if Set.member k enabled && not (Set.member k u) then
-                Just (Set.insert k u)
+        ( Just key, Just used ) ->
+            if Set.member key threadContext.enabled && not (Set.member key used) then
+                Just { threadContext | used = Just (Set.insert key used) }
 
             else
                 Nothing
 
 
-checkScriptForEnabledMessage : Set String -> Maybe (Set String) -> List Script.Step -> Maybe ( Script.ScriptComponent, Set String )
-checkScriptForEnabledMessage enabled used script =
-    case script of
-        [] ->
-            Nothing
+sceneEnabledInContext : App.GlobalContext -> App.ThreadScript -> Script.ThreadScene -> Maybe ( App.ThreadScript, Script.ThreadScene )
+sceneEnabledInContext _ threadContext scene =
+    sceneKeyEnabledInContext threadContext scene.key
+        |> Maybe.andThen
+            (\updatedThreadContext ->
+                if List.length scene.guards == 0 then
+                    Just ( updatedThreadContext, scene )
 
-        step :: steps ->
-            case keyEnabled step.key enabled used of
-                Nothing ->
-                    checkScriptForEnabledMessage enabled used steps
-
-                Just newUsed ->
-                    --- TODO ADD CONDITIONS HERE
-                    if List.length step.guards == 0 then
-                        Just ( step.contents, newUsed )
-
-                    else
-                        checkScriptForEnabledMessage enabled used steps
+                else
+                    -- TODO
+                    Nothing
+            )
 
 
-findEnabledMessage :
-    Int
-    -> List App.ScriptWithContext
-    -> Maybe ( ( Int, Script.ThreadScript ), Script.ScriptComponent, List App.ScriptWithContext )
-findEnabledMessage index threadScripts =
-    case threadScripts of
-        [] ->
-            Nothing
-
-        script :: remainingThreadScripts ->
-            case checkScriptForEnabledMessage script.enabled script.used script.script.script of
-                Nothing ->
-                    findEnabledMessage (index + 1) remainingThreadScripts
-                        |> Maybe.map (\( i, component, modifiedScripts ) -> ( i, component, script :: modifiedScripts ))
-
-                Just ( component, used ) ->
-                    Just ( ( index, script.script ), component, { script | used = Just used } :: remainingThreadScripts )
-
+findEnabledScene : App.GlobalContext -> App.ThreadScript -> Maybe ( App.ThreadScript, Script.ThreadScene )
+findEnabledScene globalContext threadScript =
+    Util.findSomething (sceneEnabledInContext globalContext threadScript) threadScript.scenes
 
 
 -- Subscriptions
