@@ -1,4 +1,4 @@
-module Example exposing (..)
+module Example exposing (addressBook, exampleScript)
 
 import ScriptTypes exposing (..)
 
@@ -48,7 +48,7 @@ exampleScript =
                         }
                   }
                 , { shortText = "Sounds great."
-                  , actions = [] -- No actions. In this case that means the thread is over.
+                  , actions = [ Set "has_plans" ] -- The "has_plans" global predicate will be set.
                   , email =
                         { from = "dawn"
                         , to = [ "anuj", "felix" ]
@@ -58,7 +58,7 @@ exampleScript =
                 ]
           }
         , { key = Just "conflict" -- This thread is enabled by the (Goto "conflict") action
-          , guards = [] -- No other guards. As soon as the email is enabled it can show up.
+          , guards = [ IsUnset "something_that_never_gets_set" ] -- This will be always true. As soon as the email is enabled it can show up.
           , receivedEmail =
                 { from = "anuj"
                 , to = [ "dawn" ]
@@ -70,7 +70,7 @@ exampleScript =
                 ]
           }
         , { key = Just "conflict" -- Multiple script responses can have the same key, but only one will ever send (the first one whose guards match)
-          , guards = [ Never ] -- This guard will never match, only useful for debugging or demonstration purposes
+          , guards = [ IsSet "something_that_never_gets_set" ] -- This guard will never match
           , receivedEmail =
                 { from = "anuj"
                 , to = [ "dawn" ]

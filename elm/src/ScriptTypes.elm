@@ -18,10 +18,13 @@ type alias Email =
 
 type Action
     = Enable String
+    | Set String
+    | Unset String
 
 
 type Condition
-    = Never
+    = IsSet String
+    | IsUnset String
 
 
 type alias EmailResponse =

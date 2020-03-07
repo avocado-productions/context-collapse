@@ -46,7 +46,7 @@ init () =
         Dict.fromList
             (List.map (\entry -> ( entry.key, entry )) Example.addressBook)
     , you = "dawn"
-    , context = {}
+    , context = { predicates = Set.empty }
     , scripts = initScripts [ Example.exampleScript ]
     , inbox = []
     }
@@ -56,6 +56,11 @@ init () =
 
 -- Update
 
+setPredicate : String -> App.GlobalContext -> App.GlobalContext
+setPredicate str context = { context | predicates = Set.insert str context.predicates }
+
+unsetPredicate : String -> App.GlobalContext -> App.GlobalContext
+unsetPredicate str context = { context | predicates = Set.remove str context.predicates }
 
 update : App.Msg -> App.Model -> ( App.Model, Cmd App.Msg )
 update msg model =
@@ -78,7 +83,7 @@ update msg model =
                 |> C.with (Cmd.batch (List.map (App.DoAction index >> C.perform) response.actions))
 
         App.DoAction index action ->
-            case action of
+            (case action of
                 Script.Enable str ->
                     { model
                         | scripts =
@@ -86,7 +91,11 @@ update msg model =
                                 (\script -> { script | enabled = Set.insert str script.enabled })
                                 model.scripts
                     }
-                        |> C.with (Delay.after 2 Delay.Second App.CheckForEnabled)
+                Script.Set str -> 
+                    { model | context = setPredicate str model.context }
+                Script.Unset str -> 
+                    { model | context = unsetPredicate str model.context}
+            )                         |> C.with (Delay.after 2 Delay.Second App.CheckForEnabled)
 
         App.CheckForEnabled ->
             case Util.findSomething (findEnabledScene model.context) model.scripts of

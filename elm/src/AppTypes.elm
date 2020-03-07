@@ -19,7 +19,8 @@ type Msg
 
 
 type alias GlobalContext =
-    {}
+    { predicates : Set String
+    }
 
 
 type alias ThreadScript =
