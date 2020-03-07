@@ -26,7 +26,7 @@ main =
 
 -- MODEL
 
-initScripts : List Script.ThreadScript -> List App.ActionScript
+initScripts : List Script.ThreadScript -> List App.ThreadScript
 initScripts =
     List.indexedMap
         (\index script ->
