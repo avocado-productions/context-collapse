@@ -3,7 +3,7 @@ module Main2 exposing (main)
 import Browser
 import Cmd.Extra as C
 import Dict exposing (Dict)
-import Element exposing (Element, centerX, centerY, column, el, fill, height, paragraph, px, rgb255, row, spacing, text, width)
+import Element exposing (Element, centerX, centerY, column, el, fill, height, padding, paragraph, px, rgb255, row, spacing, text, width)
 import Element.Background as Background
 import Element.Events as Events
 import Element.Font as Font
@@ -56,8 +56,9 @@ type ActiveThreadState
 
 
 type Msg
-    = ReturnToInbox
+    = ReturnToInbox Int
     | OpenThread ActiveThread
+    | MakeDecision Int Script.EmailResponse
     | DoAction Int Script.Action
     | CheckForEnabled
 
@@ -72,7 +73,7 @@ init () =
     , script = [ { enabled = Set.empty, used = Nothing, script = Example.exampleScript } ]
     , inbox = []
     }
-        |> C.with Cmd.none
+        |> C.with (C.perform CheckForEnabled)
 
 
 
@@ -82,11 +83,18 @@ init () =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        ReturnToInbox ->
-            { model | currentThread = Nothing } |> C.with Cmd.none
+        ReturnToInbox index ->
+            { model | currentThread = Nothing, inbox = updateInboxItsRead index model.inbox } |> C.with Cmd.none
 
         OpenThread thread ->
-            { model | currentThread = Just thread } |> C.with Cmd.none
+            { model
+                | currentThread = Just thread
+            }
+                |> C.with Cmd.none
+
+        MakeDecision index response ->
+            { model | currentThread = Nothing, inbox = updateInboxWithResponse index response.email model.inbox }
+                |> C.with (Cmd.batch (List.map (DoAction index >> C.perform) response.actions))
 
         DoAction index action ->
             case action of
@@ -100,33 +108,138 @@ update msg model =
                         |> C.with (C.perform CheckForEnabled)
 
         CheckForEnabled ->
-            { model | script = model.script }
-                |> C.with Cmd.none
+            case findEnabledMessage 0 model.script of
+                Nothing ->
+                    model |> C.with Cmd.none
+
+                Just ( index, component, script ) ->
+                    { model
+                        | script = script
+                        , inbox = updateInboxWithNewIncoming index component model.inbox |> (\( x, xs ) -> x :: xs)
+                    }
+                        |> C.with Cmd.none
+
+
+updateInboxItsRead : Int -> List ActiveThread -> List ActiveThread
+updateInboxItsRead index =
+    List.map
+        (\thread ->
+            if index == thread.index then
+                case thread.state of
+                    Unread responses ->
+                        { thread | state = Unresponded responses }
+
+                    _ ->
+                        thread
+
+            else
+                thread
+        )
+
+
+updateInboxWithResponse : Int -> Script.Email -> List ActiveThread -> List ActiveThread
+updateInboxWithResponse index email =
+    List.map
+        (\thread ->
+            if index == thread.index then
+                { thread | state = Responded, contents = thread.contents ++ [ email ] }
+
+            else
+                thread
+        )
+
+
+updateInboxWithNewIncoming : ( Int, Script.ThreadScript ) -> Script.ScriptComponent -> List ActiveThread -> ( ActiveThread, List ActiveThread )
+updateInboxWithNewIncoming ( index, script ) component inbox =
+    case inbox of
+        [] ->
+            ( { index = index
+              , subject = script.subject
+              , people = []
+              , contents = [ component.receivedEmail ]
+              , state = Unread component.availableResponses
+              }
+            , []
+            )
+
+        thread :: threads ->
+            if index == thread.index then
+                ( { thread
+                    | contents = thread.contents ++ [ component.receivedEmail ]
+                    , state = Unread component.availableResponses
+                  }
+                , threads
+                )
+
+            else
+                let
+                    ( updatedThread, otherThreads ) =
+                        updateInboxWithNewIncoming ( index, script ) component threads
+                in
+                ( updatedThread, thread :: otherThreads )
+
 
 keyEnabled key enabled used =
-    case (key, used) of
-        (Nothing, Nothing) -> Just (Set.empty) -- Root emails are enabled if no root has been published
-        (Nothing, Just _) -> Nothing -- Root emails are disabled once a root is published
-        (Just _, Nothing) -> Nothing -- No named emails are enabled until a root is published
-        (Just k, Just u) -> 
-            if (Set.member k enabled) && not (Set.member k u)
-            then Just (Set.insert k u)
-            else Nothing
+    case ( key, used ) of
+        ( Nothing, Nothing ) ->
+            Just Set.empty
 
-checkScriptForEnabledMessage : Set String -> Maybe (Set String) -> List Script.Step -> Maybe (Script.ScriptComponent, Set String)
+        -- Root emails are enabled if no root has been published
+        ( Nothing, Just _ ) ->
+            Nothing
+
+        -- Root emails are disabled once a root is published
+        ( Just _, Nothing ) ->
+            Nothing
+
+        -- No named emails are enabled until a root is published
+        ( Just k, Just u ) ->
+            if Set.member k enabled && not (Set.member k u) then
+                Just (Set.insert k u)
+
+            else
+                Nothing
+
+
+checkScriptForEnabledMessage : Set String -> Maybe (Set String) -> List Script.Step -> Maybe ( Script.ScriptComponent, Set String )
 checkScriptForEnabledMessage enabled used script =
     case script of
-        [] -> Nothing
+        [] ->
+            Nothing
+
         step :: steps ->
             case keyEnabled step.key enabled used of
-                Nothing -> checkScriptForEnabledMessage enabled used steps
-                Just newUsed -> 
-                    --- TODO ADD CONDITIONS HERE
-                    if List.length step.guards == 0
-                    then Just (step.contents, newUsed)
-                    else checkScriptForEnabledMessage enabled used steps
+                Nothing ->
+                    checkScriptForEnabledMessage enabled used steps
 
-advanceScript : 
+                Just newUsed ->
+                    --- TODO ADD CONDITIONS HERE
+                    if List.length step.guards == 0 then
+                        Just ( step.contents, newUsed )
+
+                    else
+                        checkScriptForEnabledMessage enabled used steps
+
+
+findEnabledMessage :
+    Int
+    -> List { enabled : Set String, used : Maybe (Set String), script : Script.ThreadScript }
+    -> Maybe ( ( Int, Script.ThreadScript ), Script.ScriptComponent, List { enabled : Set String, used : Maybe (Set String), script : Script.ThreadScript } )
+findEnabledMessage index threadScripts =
+    case threadScripts of
+        [] ->
+            Nothing
+
+        script :: remainingThreadScripts ->
+            case checkScriptForEnabledMessage script.enabled script.used script.script.script of
+                Nothing ->
+                    findEnabledMessage (index + 1) remainingThreadScripts
+                        |> Maybe.map (\( i, component, modifiedScripts ) -> ( i, component, script :: modifiedScripts ))
+
+                Just ( component, used ) ->
+                    Just ( ( index, script.script ), component, { script | used = Just used } :: remainingThreadScripts )
+
+
 
 -- Subscriptions
 
@@ -250,10 +363,10 @@ viewThreadPreview thread =
         , el [ width threadHeight, centerY ] (el [ centerX ] (Element.html important))
         , el
             [ weight, width (px 250), height fill, Element.pointer, Events.onClick (OpenThread thread) ]
-            (el [ centerY ] (text "AAA"))
+            (el [ centerY ] (text "(todo: participants)"))
         , el
             [ weight, width fill, height fill, Element.pointer, Events.onClick (OpenThread thread) ]
-            (el [ centerY ] (text "BBB"))
+            (el [ centerY ] (text thread.subject))
         , el
             [ weight, width (px 150), height fill, Element.alignRight, Element.pointer, Events.onClick (OpenThread thread) ]
             (el [ centerY, Element.alignRight ] (text "1:15 PM"))
@@ -267,15 +380,35 @@ viewThread thread =
         [ el [ width threadHeight, height threadHeight ] Element.none
         , el [ width threadHeight, height threadHeight ] Element.none
         , column [ width fill, height fill, spacing 10 ]
-            [ el [ height (px 10) ] Element.none
-            , el [ Font.size 30 ] (text thread.subject)
-            , el [ height (px 10) ] Element.none
-            , paragraph [] <| List.singleton <| text "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum."
-            , paragraph [] <| List.singleton <| text "Why do we use it?"
-            , paragraph [] <| List.singleton <| text "It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. The point of using Lorem Ipsum is that it has a more-or-less normal distribution of letters, as opposed to using 'Content here, content here', making it look like readable English. Many desktop publishing packages and web page editors now use Lorem Ipsum as their default model text, and a search for 'lorem ipsum' will uncover many web sites still in their infancy. Various versions have evolved over the years, sometimes by accident, sometimes on purpose (injected humour and the like)."
-            , paragraph [] <| List.singleton <| text "Where does it come from?"
-            , paragraph [] <| List.singleton <| text "Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of \"de Finibus Bonorum et Malorum\" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, \"Lorem ipsum dolor sit amet..\", comes from a line in section 1.10.32."
-            ]
+            (el [ height (px 10) ] Element.none
+                :: el [ Font.size 30 ] (text thread.subject)
+                :: el [ height (px 10) ] Element.none
+                :: List.map (\{ from, to, contents } -> paragraph [] (List.map text contents)) thread.contents
+                ++ [ case thread.state of
+                        Responded ->
+                            Element.none
+
+                        Unread options ->
+                            row [ width fill, spacing 10 ]
+                                (List.map
+                                    (\responseOption ->
+                                        el [ padding 10, Background.color (rgb255 200 200 200), Events.onClick (MakeDecision thread.index responseOption) ]
+                                            (text responseOption.shortText)
+                                    )
+                                    options
+                                )
+
+                        Unresponded options ->
+                            row [ width fill, spacing 10 ]
+                                (List.map
+                                    (\responseOption ->
+                                        el [ padding 10, Background.color (rgb255 200 200 200), Events.onClick (MakeDecision thread.index responseOption) ]
+                                            (text responseOption.shortText)
+                                    )
+                                    options
+                                )
+                   ]
+            )
         , el [ width threadHeight, height threadHeight ] Element.none
         ]
 
@@ -299,8 +432,8 @@ mainPanel model =
                 Nothing ->
                     Element.none
 
-                Just _ ->
-                    el [ Events.onClick ReturnToInbox, centerX, centerY, Element.pointer ] (text "<-")
+                Just activeThread ->
+                    el [ Events.onClick (ReturnToInbox activeThread.index), centerX, centerY, Element.pointer ] (text "<-")
             )
         , el [ width fill, height (px 1), Background.color (rgb255 200 200 200) ] Element.none
         , el
