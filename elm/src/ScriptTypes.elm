@@ -1,4 +1,4 @@
-module Script exposing (Action(..), AddressbookEntry, Condition(..), Email, EmailResponse, ScriptComponent, Step, ThreadScript)
+module ScriptTypes exposing (Action(..), AddressbookEntry, Condition(..), Email, EmailResponse, ScriptComponent, Step, ThreadScript)
 
 
 type alias AddressbookEntry =

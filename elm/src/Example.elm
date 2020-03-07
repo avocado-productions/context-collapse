@@ -1,6 +1,6 @@
 module Example exposing (..)
 
-import Script exposing (..)
+import ScriptTypes exposing (..)
 
 
 addressBook : List AddressbookEntry
