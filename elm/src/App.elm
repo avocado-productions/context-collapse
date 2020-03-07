@@ -195,16 +195,21 @@ sceneKeyEnabledInContext threadContext sceneKey =
                 Nothing
 
 
+guardPassesInContext : App.GlobalContext -> Script.Condition -> Bool
+guardPassesInContext globalContext cond =
+    case cond of
+        Script.IsSet str -> Set.member str globalContext.predicates
+        Script.IsUnset str -> not <| Set.member str globalContext.predicates
+
 sceneEnabledInContext : App.GlobalContext -> App.ThreadScript -> Script.ThreadScene -> Maybe ( App.ThreadScript, Script.ThreadScene )
-sceneEnabledInContext _ threadContext scene =
+sceneEnabledInContext globalContext threadContext scene =
     sceneKeyEnabledInContext threadContext scene.key
         |> Maybe.andThen
             (\updatedThreadContext ->
-                if List.length scene.guards == 0 then
+                if List.all (guardPassesInContext globalContext) scene.guards then
                     Just ( updatedThreadContext, scene )
 
                 else
-                    -- TODO
                     Nothing
             )
 
