@@ -43,7 +43,7 @@ initScripts =
 
 init : () -> ( App.Model, Cmd App.Msg )
 init () =
-    { currentThread = Nothing
+    { current = Nothing
     , you = S.you
     , context = { predicates = Set.empty }
     , scripts = initScripts S.myScript
@@ -69,37 +69,39 @@ unsetPredicate str context =
 update : App.Msg -> App.Model -> ( App.Model, Cmd App.Msg )
 update msg model =
     case msg of
-        App.ReturnToInbox threadIndex ->
+        App.ReturnToInbox loc ->
             { model
-                | currentThread = Nothing
-                , inbox = updateInboxBecauseThisIndexHasBeenRead threadIndex model.inbox
+                | current = Nothing
+                , inbox = updateInboxBecauseThisIndexHasBeenRead loc model.inbox
             }
                 |> C.with Cmd.none
 
-        App.OpenThread threadIndex ->
-            { model
-                | currentThread = Just threadIndex
-            }
+        App.OpenThread loc ->
+            { model | current = Just loc  }
                 |> C.with Cmd.none
 
-        App.MakeDecision index response ->
-            { model | currentThread = Nothing, inbox = updateInboxBecauseThisIndexHasBeenRespondedTo index response.email model.inbox }
-                |> C.with (Cmd.batch (List.map (App.DoAction index >> C.perform) response.actions))
+        App.MakeDecision loc response ->
+            { model | {- current = Nothing, -} inbox = updateInboxBecauseThisIndexHasBeenRespondedTo loc response.email model.inbox }
+                |> C.with (Cmd.batch (List.map (App.DoAction (Just loc) >> C.perform) response.actions))
 
-        App.DoAction index action ->
-            (case action of
-                Script.Enable str ->
+        App.DoAction loc action ->
+            (case ( loc, action ) of
+                ( Just l, Script.Enable str ) ->
                     { model
                         | scripts =
-                            List.Extra.updateAt index
+                            List.Extra.updateAt l.scriptIndex
                                 (\script -> { script | enabled = Set.insert str script.enabled })
                                 model.scripts
                     }
 
-                Script.Set str ->
+                ( _, Script.Enable _ ) ->
+                    -- ERROR
+                    model
+
+                ( _, Script.Set str ) ->
                     { model | context = setPredicate str model.context }
 
-                Script.Unset str ->
+                ( _, Script.Unset str ) ->
                     { model | context = unsetPredicate str model.context }
             )
                 |> C.with (Delay.after 2 Delay.Second App.CheckForEnabled)
@@ -120,20 +122,20 @@ update msg model =
                         |> C.with
                             (Cmd.batch
                                 (Delay.after 500 Delay.Millisecond App.CheckForEnabled
-                                    :: List.map (App.DoAction -1 >> C.perform) enabledScene.actions
+                                    :: List.map (App.DoAction Nothing >> C.perform) enabledScene.actions
                                 )
                             )
 
-        App.ToggleSuggestion threadIndex suggestionIndex ->
-            { model | inbox = updateIndexToogleSuggestionIndex threadIndex suggestionIndex model.inbox }
+        App.ToggleSuggestion loc suggestionIndex ->
+            { model | inbox = updateIndexToogleSuggestionIndex loc suggestionIndex model.inbox }
                 |> C.with Cmd.none
 
 
-updateIndexToogleSuggestionIndex : Int -> Int -> List App.ActiveThread -> List App.ActiveThread
-updateIndexToogleSuggestionIndex threadIndex suggestionIndex =
+updateIndexToogleSuggestionIndex : App.ThreadLocation -> Int -> List App.ActiveThread -> List App.ActiveThread
+updateIndexToogleSuggestionIndex loc suggestionIndex =
     List.map
         (\thread ->
-            if threadIndex == thread.index then
+            if loc.scriptIndex == thread.index then
                 case thread.state of
                     App.Unread responses currentSuggestionIndex ->
                         if currentSuggestionIndex == Just suggestionIndex then
@@ -157,11 +159,11 @@ updateIndexToogleSuggestionIndex threadIndex suggestionIndex =
         )
 
 
-updateInboxBecauseThisIndexHasBeenRead : Int -> List App.ActiveThread -> List App.ActiveThread
-updateInboxBecauseThisIndexHasBeenRead threadIndex =
+updateInboxBecauseThisIndexHasBeenRead : App.ThreadLocation -> List App.ActiveThread -> List App.ActiveThread
+updateInboxBecauseThisIndexHasBeenRead loc =
     List.map
         (\thread ->
-            if threadIndex == thread.index then
+            if loc.scriptIndex == thread.index then
                 case thread.state of
                     App.Unread responses _ ->
                         { thread | state = App.Unresponded responses Nothing }
@@ -177,11 +179,11 @@ updateInboxBecauseThisIndexHasBeenRead threadIndex =
         )
 
 
-updateInboxBecauseThisIndexHasBeenRespondedTo : Int -> Script.Email -> List App.ActiveThread -> List App.ActiveThread
-updateInboxBecauseThisIndexHasBeenRespondedTo threadIndex newResponse =
+updateInboxBecauseThisIndexHasBeenRespondedTo : App.ThreadLocation -> Script.Email -> List App.ActiveThread -> List App.ActiveThread
+updateInboxBecauseThisIndexHasBeenRespondedTo loc newResponse =
     List.map
         (\thread ->
-            if threadIndex == thread.index then
+            if loc.scriptIndex == thread.index then
                 { thread | state = App.Responded, contents = thread.contents ++ [ newResponse ] }
 
             else

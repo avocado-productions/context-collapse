@@ -32,8 +32,8 @@ buttonSpacing =
     20
 
 
-suggestionButton : Bool -> Int -> Int -> String -> Element App.Msg
-suggestionButton selected threadIndex suggestionIndex shortMessage =
+suggestionButton : Bool -> App.ThreadLocation -> Int -> String -> Element App.Msg
+suggestionButton selected loc suggestionIndex shortMessage =
     let
         ( fontColor, backgroundColor ) =
             if selected then
@@ -45,7 +45,7 @@ suggestionButton selected threadIndex suggestionIndex shortMessage =
     el
         [ Font.color fontColor
         , Background.color backgroundColor
-        , Events.onClick (App.ToggleSuggestion threadIndex suggestionIndex)
+        , Events.onClick (App.ToggleSuggestion loc suggestionIndex)
         , Border.color suggestionColor
         , Border.solid
         , Border.width 1
@@ -93,7 +93,9 @@ viewInbox threads =
         , width fill
         , height fill
         ]
-        (List.map viewThreadPreview threads)
+        (List.indexedMap
+            (\inboxIndex thread -> viewThreadPreview { inboxIndex = inboxIndex, scriptIndex = thread.index } thread)
+            threads)
 
 
 threadHeight : Element.Length
@@ -121,8 +123,8 @@ rightBuffer =
     px 35
 
 
-viewThreadPreview : App.ActiveThread -> Element App.Msg
-viewThreadPreview thread =
+viewThreadPreview : App.ThreadLocation -> App.ActiveThread -> Element App.Msg
+viewThreadPreview loc thread =
     let
         ( weight, bgColor, important ) =
             case thread.state of
@@ -140,13 +142,13 @@ viewThreadPreview thread =
         [ el [ width leftBuffer1, centerY ] (el [ centerX ] (Element.html Assets.starNo))
         , el [ width leftBuffer2, centerY ] (el [ centerX ] (Element.html important))
         , el
-            [ weight, width (px 250), height fill, Element.pointer, Events.onClick (App.OpenThread thread.index) ]
+            [ weight, width (px 250), height fill, Element.pointer, Events.onClick (App.OpenThread loc) ]
             (el [ centerY ] (text "(todo: participants)"))
         , el
-            [ weight, width fill, height fill, Element.pointer, Events.onClick (App.OpenThread thread.index) ]
+            [ weight, width fill, height fill, Element.pointer, Events.onClick (App.OpenThread loc) ]
             (el [ centerY ] (text thread.subject))
         , el
-            [ weight, width (px 150), height fill, Element.alignRight, Element.pointer, Events.onClick (App.OpenThread thread.index) ]
+            [ weight, width (px 150), height fill, Element.alignRight, Element.pointer, Events.onClick (App.OpenThread loc) ]
             (el [ centerY, Element.alignRight ] (text "1:15 PM"))
         , el [ width rightBuffer, height threadHeight, Element.alignRight ] Element.none
         ]
@@ -209,8 +211,8 @@ viewResponse kind records =
             row [ width fill, spacing 15 ] [ text kind, wrappedRow [ width fill, spacing 15 ] (List.map toPill records) ]
 
 
-viewEmailResponse : Int -> Int -> Script.EmailResponse -> Element App.Msg
-viewEmailResponse threadIndex suggestionIndex emailResponse =
+viewEmailResponse : App.ThreadLocation -> Int -> Script.EmailResponse -> Element App.Msg
+viewEmailResponse loc suggestionIndex emailResponse =
     column [ width fill ]
         [ el [ height responseSeparator ] none
         , row [ width fill ]
@@ -228,7 +230,7 @@ viewEmailResponse threadIndex suggestionIndex emailResponse =
                     , column [ spacing 10 ] (List.map (\par -> paragraph [] [ text par ]) emailResponse.email.contents)
                     , separator
                     , el
-                        [ Events.onClick (App.MakeDecision threadIndex emailResponse)
+                        [ Events.onClick (App.MakeDecision loc emailResponse)
                         , Font.color (rgb255 255 255 255)
                         , Background.color suggestionColor
                         , Border.color suggestionColor
@@ -246,8 +248,8 @@ viewEmailResponse threadIndex suggestionIndex emailResponse =
         ]
 
 
-viewSuggestions : Int -> List Script.EmailResponse -> Maybe Int -> Element App.Msg
-viewSuggestions threadIndex responseOptions selectedIndex =
+viewSuggestions : App.ThreadLocation -> List Script.EmailResponse -> Maybe Int -> Element App.Msg
+viewSuggestions loc responseOptions selectedIndex =
     column [ width fill ]
         [ row [ width fill ]
             [ el [ width leftBuffer ] none
@@ -256,7 +258,7 @@ viewSuggestions threadIndex responseOptions selectedIndex =
                     (\suggestionIndex responseOption ->
                         suggestionButton
                             (selectedIndex == Just suggestionIndex)
-                            threadIndex
+                            loc
                             suggestionIndex
                             responseOption.shortText
                     )
@@ -269,7 +271,7 @@ viewSuggestions threadIndex responseOptions selectedIndex =
                     List.Extra.getAt responseIndex responseOptions
                         |> Maybe.map
                             (\emailResponse ->
-                                viewEmailResponse threadIndex responseIndex emailResponse
+                                viewEmailResponse loc responseIndex emailResponse
                             )
                 )
           )
@@ -277,7 +279,7 @@ viewSuggestions threadIndex responseOptions selectedIndex =
         ]
 
 
-viewThread : Int -> App.ActiveThread -> Element App.Msg
+viewThread : App.ThreadLocation -> App.ActiveThread -> Element App.Msg
 viewThread threadIndex thread =
     column [ width fill, height fill, spacing 20 ]
         (el [ height (px 10) ] Element.none
@@ -314,7 +316,7 @@ mainPanel model =
             [ width threadHeight
             , height threadHeight
             ]
-            (case model.currentThread of
+            (case model.current of
                 Nothing ->
                     Element.none
 
@@ -328,17 +330,17 @@ mainPanel model =
             , Element.scrollbarY
             ]
             (case
-                model.currentThread
+                model.current
                     |> Maybe.andThen
-                        (\i ->
-                            List.Extra.getAt i model.inbox
-                                |> Maybe.map (\thread -> ( i, thread ))
+                        (\loc ->
+                            List.Extra.find (\thread -> thread.index == loc.scriptIndex) model.inbox
+                                |> Maybe.map (\thread -> ( loc, thread ))
                         )
              of
                 Nothing ->
                     viewInbox model.inbox
 
-                Just ( threadIndex, thread ) ->
-                    viewThread threadIndex thread
+                Just ( loc, thread ) ->
+                    viewThread loc thread
             )
         ]

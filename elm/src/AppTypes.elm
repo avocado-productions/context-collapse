@@ -1,4 +1,4 @@
-module AppTypes exposing (ActiveThread, ActiveThreadState(..), GlobalContext, Model, Msg(..), ThreadScript)
+module AppTypes exposing (ActiveThread, ActiveThreadState(..), GlobalContext, Model, Msg(..), ThreadLocation, ThreadScript)
 
 {- Stores types not needed for static authoring, but used for coordination between
    the different parts of the running program. Msg is used in both update and view,
@@ -11,12 +11,12 @@ import Set exposing (Set)
 
 
 type Msg
-    = ReturnToInbox Int
-    | OpenThread Int
-    | MakeDecision Int Script.EmailResponse
-    | DoAction Int Script.Action
+    = ReturnToInbox ThreadLocation
+    | OpenThread ThreadLocation
+    | MakeDecision ThreadLocation Script.EmailResponse
+    | DoAction (Maybe ThreadLocation) Script.Action
     | CheckForEnabled
-    | ToggleSuggestion Int Int
+    | ToggleSuggestion ThreadLocation Int
 
 
 type alias GlobalContext =
@@ -32,9 +32,13 @@ type alias ThreadScript =
     , used : Maybe (Set String) -- Just email keys that have been shown (Nothing if the thread hasn't started)
     }
 
+type alias ThreadLocation =
+    { inboxIndex: Int
+    , scriptIndex: Int
+    }
 
 type alias Model =
-    { currentThread : Maybe Int
+    { current : Maybe ThreadLocation
     , you : Script.AddressbookEntry
     , context : GlobalContext
     , scripts : List ThreadScript
