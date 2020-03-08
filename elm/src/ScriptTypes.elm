@@ -2,16 +2,15 @@ module ScriptTypes exposing (Action(..), AddressbookEntry, Condition(..), Email,
 
 
 type alias AddressbookEntry =
-    { key : String
-    , email : String
+    { email : String
     , short : String
     , full : String
     }
 
 
 type alias Email =
-    { from : String
-    , to : List String
+    { from : AddressbookEntry
+    , to : List AddressbookEntry
     , contents : List String
     }
 
@@ -38,6 +37,7 @@ type alias ThreadScene =
     { key : Maybe String
     , guards : List Condition
     , receivedEmail : Email
+    , actions : List Action
     , availableResponses : List EmailResponse
     }
 

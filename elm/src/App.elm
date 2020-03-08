@@ -7,8 +7,8 @@ import Delay
 import Dict
 import Example
 import List.Extra
-import ScriptTypes as Script
 import Script as S
+import ScriptTypes as Script
 import Set
 import Util
 import View
@@ -44,10 +44,7 @@ initScripts =
 init : () -> ( App.Model, Cmd App.Msg )
 init () =
     { currentThread = Nothing
-    , addressbook =
-        Dict.fromList
-            (List.map (\entry -> ( entry.key, entry )) S.addressBook)
-    , you = "dawn"
+    , you = S.dawn
     , context = { predicates = Set.empty }
     , scripts = initScripts S.myScript
     , inbox = []
@@ -120,7 +117,12 @@ update msg model =
                                 model.scripts
                         , inbox = updateInboxWithNewScene updatedThreadScript enabledScene model.inbox |> (\( x, xs ) -> x :: xs)
                     }
-                        |> C.with Cmd.none
+                        |> C.with
+                            (Cmd.batch
+                                (Delay.after 500 Delay.Millisecond App.CheckForEnabled
+                                    :: List.map (App.DoAction -1 >> C.perform) enabledScene.actions
+                                )
+                            )
 
         App.ToggleSuggestion threadIndex suggestionIndex ->
             { model | inbox = updateIndexToogleSuggestionIndex threadIndex suggestionIndex model.inbox }

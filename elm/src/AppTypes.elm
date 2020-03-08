@@ -35,8 +35,7 @@ type alias ThreadScript =
 
 type alias Model =
     { currentThread : Maybe Int
-    , addressbook : Dict String Script.AddressbookEntry
-    , you : String
+    , you : Script.AddressbookEntry
     , context : GlobalContext
     , scripts : List ThreadScript
     , inbox : List ActiveThread

@@ -152,17 +152,6 @@ viewThreadPreview thread =
         ]
 
 
-lookupEmail : App.Model -> String -> Script.AddressbookEntry
-lookupEmail model key =
-    Dict.get key model.addressbook
-        |> Maybe.withDefault
-            { key = key
-            , email = "ERROR@INTERNAL.NO." ++ key
-            , short = "ERROR " ++ key
-            , full = "ERROR, NO KEY " ++ key
-            }
-
-
 dimmedText : Color
 dimmedText =
     rgb255 120 120 120
@@ -173,14 +162,11 @@ uiGray =
     rgb255 200 200 200
 
 
-viewEmail : App.Model -> Script.Email -> Element App.Msg
-viewEmail model email =
+viewEmail : Script.Email -> Element App.Msg
+viewEmail email =
     let
-        from =
-            lookupEmail model email.from
-
         to =
-            List.map (lookupEmail model) email.to
+            email.to
                 |> List.map (\x -> x.full)
                 |> List.intersperse ", "
                 |> String.concat
@@ -189,8 +175,8 @@ viewEmail model email =
         [ el [ width leftBuffer, centerX, alignTop ] (html Assets.idCircle)
         , column [ width fill, spacing 10 ]
             (paragraph [ Font.size 15 ]
-                [ el [ Font.bold ] (text from.full)
-                , el [ Font.color dimmedText ] (text ("  <" ++ from.email ++ ">"))
+                [ el [ Font.bold ] (text email.from.full)
+                , el [ Font.color dimmedText ] (text ("  <" ++ email.from.email ++ ">"))
                 ]
                 :: paragraph [ Font.size 15, Font.color dimmedText ] [ text ("to " ++ to) ]
                 :: List.map (text >> List.singleton >> paragraph []) email.contents
@@ -208,33 +194,23 @@ responseSeparator =
     px 20
 
 
-toPill : String -> Element msg
-toPill name =
-    el [ paddingXY 10 0, height (px 22), Border.width 1, Border.rounded 10, Font.size 15, Border.color (rgb255 255 140 0) ] (el [ centerY ] (text name))
+toPill : Script.AddressbookEntry -> Element msg
+toPill record =
+    el [ paddingXY 10 0, height (px 22), Border.width 1, Border.rounded 10, Font.size 15, Border.color (rgb255 255 140 0) ] (el [ centerY ] (text record.full))
 
 
-viewResponse : App.Model -> String -> List String -> Element msg
-viewResponse model kind entries =
-    let
-        names =
-            List.map
-                (\id ->
-                    Dict.get id model.addressbook
-                        |> Maybe.map (\entry -> entry.full)
-                        |> Maybe.withDefault ("ERROR UNKNOWN " ++ id)
-                )
-                entries
-    in
-    case entries of
+viewResponse : String -> List Script.AddressbookEntry -> Element msg
+viewResponse kind records =
+    case records of
         [] ->
             none
 
         _ ->
-            row [ width fill, spacing 15 ] [ text kind, wrappedRow [ width fill, spacing 15 ] (List.map toPill names) ]
+            row [ width fill, spacing 15 ] [ text kind, wrappedRow [ width fill, spacing 15 ] (List.map toPill records) ]
 
 
-viewEmailResponse : App.Model -> Int -> Int -> Script.EmailResponse -> Element App.Msg
-viewEmailResponse model threadIndex suggestionIndex emailResponse =
+viewEmailResponse : Int -> Int -> Script.EmailResponse -> Element App.Msg
+viewEmailResponse threadIndex suggestionIndex emailResponse =
     column [ width fill ]
         [ el [ height responseSeparator ] none
         , row [ width fill ]
@@ -248,7 +224,7 @@ viewEmailResponse model threadIndex suggestionIndex emailResponse =
                 , Border.glow uiGray 1.0
                 ]
                 (column [ width fill, spacing 20 ]
-                    [ viewResponse model "To" emailResponse.email.to
+                    [ viewResponse "To" emailResponse.email.to
                     , column [ spacing 10 ] (List.map (\par -> paragraph [] [ text par ]) emailResponse.email.contents)
                     , separator
                     , el
@@ -270,8 +246,8 @@ viewEmailResponse model threadIndex suggestionIndex emailResponse =
         ]
 
 
-viewSuggestions : App.Model -> Int -> List Script.EmailResponse -> Maybe Int -> Element App.Msg
-viewSuggestions model threadIndex responseOptions selectedIndex =
+viewSuggestions : Int -> List Script.EmailResponse -> Maybe Int -> Element App.Msg
+viewSuggestions threadIndex responseOptions selectedIndex =
     column [ width fill ]
         [ row [ width fill ]
             [ el [ width leftBuffer ] none
@@ -293,7 +269,7 @@ viewSuggestions model threadIndex responseOptions selectedIndex =
                     List.Extra.getAt responseIndex responseOptions
                         |> Maybe.map
                             (\emailResponse ->
-                                viewEmailResponse model threadIndex responseIndex emailResponse
+                                viewEmailResponse threadIndex responseIndex emailResponse
                             )
                 )
           )
@@ -301,24 +277,24 @@ viewSuggestions model threadIndex responseOptions selectedIndex =
         ]
 
 
-viewThread : App.Model -> Int -> App.ActiveThread -> Element App.Msg
-viewThread model threadIndex thread =
+viewThread : Int -> App.ActiveThread -> Element App.Msg
+viewThread threadIndex thread =
     column [ width fill, height fill, spacing 20 ]
         (el [ height (px 10) ] Element.none
             :: row [ width fill ]
                 [ el [ width leftBuffer ] none
                 , el [ Font.size 24 ] (text thread.subject)
                 ]
-            :: (List.map (viewEmail model) thread.contents |> List.intersperse separator)
+            :: (List.map (viewEmail) thread.contents |> List.intersperse separator)
             ++ [ case thread.state of
                     App.Responded ->
                         Element.none
 
                     App.Unread responseOptions selectedIndex ->
-                        viewSuggestions model threadIndex responseOptions selectedIndex
+                        viewSuggestions threadIndex responseOptions selectedIndex
 
                     App.Unresponded responseOptions selectedIndex ->
-                        viewSuggestions model threadIndex responseOptions selectedIndex
+                        viewSuggestions threadIndex responseOptions selectedIndex
                ]
         )
 
@@ -363,6 +339,6 @@ mainPanel model =
                     viewInbox model.inbox
 
                 Just ( threadIndex, thread ) ->
-                    viewThread model threadIndex thread
+                    viewThread threadIndex thread
             )
         ]
