@@ -2,19 +2,35 @@ module Script exposing (addressBook, myScript)
 
 import ScriptTypes exposing (..)
 
+confName : String
+confName = "IRIS"
 
 addressBook : List AddressbookEntry
 addressBook =
     [ { key = "dawn", email = "dawn@", short = "Dawn", full = "Dawn Hatton" }
     , { key = "felix", email = "felix@", short = "Felix", full = "Felix Tanenbaum" }
     , { key = "anuj", email = "anuj@", short = "Anuj", full = "Anuj Narayanan" }
-    , { key = "conf", email = "committee@irisconf.org", short = "IRISConf", full = "IRIS Conference Organizers" }
+    , { key = "conf", email = "committee@conf.org", short = confName, full = confName++"Conference Organizers" }
     ]
 
+welcome : ThreadScript
+welcome = {
+      subject = "Welcome to "++confName++"!"
+  ,   scenes = [ {
+          guards = []
+        , key = Nothing
+        , receivedEmail = {
+              from = "conf"
+            , to = ["conf"]
+            , contents = ["Welcome!"]
+        }
+        , availableResponses = []
+      }
+  ]
+ }
 
-myScript : List ThreadScript
-myScript =
-    [ { subject = "Drinks tonight?"
+drinksScene : ThreadScript
+drinksScene = { subject = "Drinks tonight?"
       , scenes =
             [ { guards = []
               , key = Nothing -- UNNAMED script steps are root events
@@ -81,4 +97,10 @@ myScript =
               }
             ]
       }
+
+myScript : List ThreadScript
+myScript =
+    [    
+      drinksScene,
+      welcome
     ]
