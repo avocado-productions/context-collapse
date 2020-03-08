@@ -95,7 +95,8 @@ viewInbox threads =
         ]
         (List.indexedMap
             (\inboxIndex thread -> viewThreadPreview { inboxIndex = inboxIndex, scriptIndex = thread.index } thread)
-            threads)
+            threads
+        )
 
 
 threadHeight : Element.Length
@@ -287,7 +288,7 @@ viewThread threadIndex thread =
                 [ el [ width leftBuffer ] none
                 , el [ Font.size 24 ] (text thread.subject)
                 ]
-            :: (List.map (viewEmail) thread.contents |> List.intersperse separator)
+            :: (List.map viewEmail thread.contents |> List.intersperse separator)
             ++ [ case thread.state of
                     App.Responded ->
                         Element.none
