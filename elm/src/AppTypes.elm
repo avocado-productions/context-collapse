@@ -16,6 +16,7 @@ type Msg
     | MakeDecision Int Script.EmailResponse
     | DoAction Int Script.Action
     | CheckForEnabled
+    | ToggleSuggestion Int Int
 
 
 type alias GlobalContext =
@@ -52,6 +53,6 @@ type alias ActiveThread =
 
 
 type ActiveThreadState
-    = Unread (List Script.EmailResponse)
-    | Unresponded (List Script.EmailResponse)
+    = Unread (List Script.EmailResponse) (Maybe Int)
+    | Unresponded (List Script.EmailResponse) (Maybe Int)
     | Responded

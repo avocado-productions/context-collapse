@@ -1,8 +1,16 @@
-module Assets exposing (importantNo, importantYes, starNo)
+module Assets exposing (idCircle, importantNo, importantYes, starNo)
 
 import Html.Attributes
 import Svg exposing (Svg)
 import Svg.Attributes
+
+idCircle : Svg msg
+idCircle =
+    Svg.svg [ Html.Attributes.width 50, Html.Attributes.height 50]
+       [ Svg.circle [ Svg.Attributes.fill "lightgray", Svg.Attributes.cx "25", Svg.Attributes.cy "25", Svg.Attributes.r "25" ] []
+       , Svg.circle [ Svg.Attributes.fill "gray", Svg.Attributes.cx "25", Svg.Attributes.cy "19", Svg.Attributes.r "5"] []
+       , Svg.polygon [ Svg.Attributes.fill "gray", Svg.Attributes.points "15,35 22,28 28,28 35,35"] []
+       ]
 
 
 importantNo : Svg msg

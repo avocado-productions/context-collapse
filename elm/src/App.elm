@@ -26,6 +26,7 @@ main =
 
 -- MODEL
 
+
 initScripts : List Script.ThreadScript -> List App.ThreadScript
 initScripts =
     List.indexedMap
@@ -56,11 +57,16 @@ init () =
 
 -- Update
 
+
 setPredicate : String -> App.GlobalContext -> App.GlobalContext
-setPredicate str context = { context | predicates = Set.insert str context.predicates }
+setPredicate str context =
+    { context | predicates = Set.insert str context.predicates }
+
 
 unsetPredicate : String -> App.GlobalContext -> App.GlobalContext
-unsetPredicate str context = { context | predicates = Set.remove str context.predicates }
+unsetPredicate str context =
+    { context | predicates = Set.remove str context.predicates }
+
 
 update : App.Msg -> App.Model -> ( App.Model, Cmd App.Msg )
 update msg model =
@@ -91,11 +97,14 @@ update msg model =
                                 (\script -> { script | enabled = Set.insert str script.enabled })
                                 model.scripts
                     }
-                Script.Set str -> 
+
+                Script.Set str ->
                     { model | context = setPredicate str model.context }
-                Script.Unset str -> 
-                    { model | context = unsetPredicate str model.context}
-            )                         |> C.with (Delay.after 2 Delay.Second App.CheckForEnabled)
+
+                Script.Unset str ->
+                    { model | context = unsetPredicate str model.context }
+            )
+                |> C.with (Delay.after 2 Delay.Second App.CheckForEnabled)
 
         App.CheckForEnabled ->
             case Util.findSomething (findEnabledScene model.context) model.scripts of
@@ -112,6 +121,38 @@ update msg model =
                     }
                         |> C.with Cmd.none
 
+        App.ToggleSuggestion threadIndex suggestionIndex ->
+            { model | inbox = updateIndexToogleSuggestionIndex threadIndex suggestionIndex model.inbox }
+                |> C.with Cmd.none
+
+
+updateIndexToogleSuggestionIndex : Int -> Int -> List App.ActiveThread -> List App.ActiveThread
+updateIndexToogleSuggestionIndex threadIndex suggestionIndex =
+    List.map
+        (\thread ->
+            if threadIndex == thread.index then
+                case thread.state of
+                    App.Unread responses currentSuggestionIndex ->
+                        if currentSuggestionIndex == Just suggestionIndex then
+                            { thread | state = App.Unread responses Nothing }
+
+                        else
+                            { thread | state = App.Unread responses (Just suggestionIndex) }
+
+                    App.Unresponded responses currentSuggestionIndex ->
+                        if currentSuggestionIndex == Just suggestionIndex then
+                            { thread | state = App.Unresponded responses Nothing }
+
+                        else
+                            { thread | state = App.Unresponded responses (Just suggestionIndex) }
+
+                    _ ->
+                        thread
+
+            else
+                thread
+        )
+
 
 updateInboxBecauseThisIndexHasBeenRead : Int -> List App.ActiveThread -> List App.ActiveThread
 updateInboxBecauseThisIndexHasBeenRead threadIndex =
@@ -119,8 +160,11 @@ updateInboxBecauseThisIndexHasBeenRead threadIndex =
         (\thread ->
             if threadIndex == thread.index then
                 case thread.state of
-                    App.Unread responses ->
-                        { thread | state = App.Unresponded responses }
+                    App.Unread responses _ ->
+                        { thread | state = App.Unresponded responses Nothing }
+
+                    App.Unresponded responses _ ->
+                        { thread | state = App.Unresponded responses Nothing }
 
                     _ ->
                         thread
@@ -150,7 +194,7 @@ updateInboxWithNewScene threadScript threadScene inbox =
               , subject = threadScript.subject
               , people = []
               , contents = [ threadScene.receivedEmail ]
-              , state = App.Unread threadScene.availableResponses
+              , state = App.Unread threadScene.availableResponses Nothing
               }
             , []
             )
@@ -159,7 +203,7 @@ updateInboxWithNewScene threadScript threadScene inbox =
             if threadScript.index == thread.index then
                 ( { thread
                     | contents = thread.contents ++ [ threadScene.receivedEmail ]
-                    , state = App.Unread threadScene.availableResponses
+                    , state = App.Unread threadScene.availableResponses Nothing
                   }
                 , threads
                 )
@@ -198,8 +242,12 @@ sceneKeyEnabledInContext threadContext sceneKey =
 guardPassesInContext : App.GlobalContext -> Script.Condition -> Bool
 guardPassesInContext globalContext cond =
     case cond of
-        Script.IsSet str -> Set.member str globalContext.predicates
-        Script.IsUnset str -> not <| Set.member str globalContext.predicates
+        Script.IsSet str ->
+            Set.member str globalContext.predicates
+
+        Script.IsUnset str ->
+            not <| Set.member str globalContext.predicates
+
 
 sceneEnabledInContext : App.GlobalContext -> App.ThreadScript -> Script.ThreadScene -> Maybe ( App.ThreadScript, Script.ThreadScene )
 sceneEnabledInContext globalContext threadContext scene =
@@ -217,6 +265,7 @@ sceneEnabledInContext globalContext threadContext scene =
 findEnabledScene : App.GlobalContext -> App.ThreadScript -> Maybe ( App.ThreadScript, Script.ThreadScene )
 findEnabledScene globalContext threadScript =
     Util.findSomething (sceneEnabledInContext globalContext threadScript) threadScript.scenes
+
 
 
 -- Subscriptions
