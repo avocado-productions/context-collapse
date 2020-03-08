@@ -1,0 +1,21 @@
+{
+  "scripts": {
+    "start": "webpack-dev-server",
+    "prettier": "prettier --write *.json *.js src/**/*.ts src/**/*.js"
+  },
+  "prettier": {
+    "printWidth": 110,
+    "tabWidth": 2,
+    "singleQuote": true,
+    "trailingComma": "es5"
+  },
+  "devDependencies": {
+    "awesome-typescript-loader": "^5.2.1",
+    "elm-webpack-loader": "^6.0.1",
+    "prettier": "^1.19.1",
+    "typescript": "^3.8.3",
+    "webpack": "^4.42.0",
+    "webpack-cli": "^3.3.11",
+    "webpack-dev-server": "^3.10.3"
+  }
+}
