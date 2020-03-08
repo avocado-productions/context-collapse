@@ -5,7 +5,6 @@ module AppTypes exposing (ActiveThread, ActiveThreadState(..), GlobalContext, Mo
    Model is used everywhere, etc.
 -}
 
-import Dict exposing (Dict)
 import ScriptTypes as Script
 import Set exposing (Set)
 

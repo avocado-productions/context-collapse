@@ -2,7 +2,6 @@ module View exposing (view)
 
 import AppTypes as App
 import Assets
-import Dict
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -212,8 +211,8 @@ viewResponse kind records =
             row [ width fill, spacing 15 ] [ text kind, wrappedRow [ width fill, spacing 15 ] (List.map toPill records) ]
 
 
-viewEmailResponse : App.ThreadLocation -> Int -> Script.EmailResponse -> Element App.Msg
-viewEmailResponse loc suggestionIndex emailResponse =
+viewEmailResponse : App.ThreadLocation -> Script.EmailResponse -> Element App.Msg
+viewEmailResponse loc emailResponse =
     column [ width fill ]
         [ el [ height responseSeparator ] none
         , row [ width fill ]
@@ -270,10 +269,7 @@ viewSuggestions loc responseOptions selectedIndex =
             |> Maybe.andThen
                 (\responseIndex ->
                     List.Extra.getAt responseIndex responseOptions
-                        |> Maybe.map
-                            (\emailResponse ->
-                                viewEmailResponse loc responseIndex emailResponse
-                            )
+                        |> Maybe.map (\emailResponse -> viewEmailResponse loc emailResponse)
                 )
           )
             |> Maybe.withDefault none
