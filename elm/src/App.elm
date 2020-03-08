@@ -8,6 +8,7 @@ import Dict
 import Example
 import List.Extra
 import ScriptTypes as Script
+import Script as S
 import Set
 import Util
 import View
@@ -45,10 +46,10 @@ init () =
     { currentThread = Nothing
     , addressbook =
         Dict.fromList
-            (List.map (\entry -> ( entry.key, entry )) Example.addressBook)
+            (List.map (\entry -> ( entry.key, entry )) S.addressBook)
     , you = "dawn"
     , context = { predicates = Set.empty }
-    , scripts = initScripts [ Example.exampleScript ]
+    , scripts = initScripts S.myScript
     , inbox = []
     }
         |> C.with (Delay.after 500 Delay.Millisecond App.CheckForEnabled)
