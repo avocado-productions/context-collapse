@@ -44,7 +44,7 @@ initScripts =
 init : () -> ( App.Model, Cmd App.Msg )
 init () =
     { currentThread = Nothing
-    , you = S.dawn
+    , you = S.you
     , context = { predicates = Set.empty }
     , scripts = initScripts S.myScript
     , inbox = []

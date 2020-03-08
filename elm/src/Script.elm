@@ -1,4 +1,4 @@
-module Script exposing (myScript, dawn)
+module Script exposing (myScript, you)
 
 import ScriptTypes exposing (..)
 
@@ -7,9 +7,15 @@ confName : String
 confName =
     "IRIS"
 
+you : AddressbookEntry
+you = naolin
+
+naolin : AddressbookEntry
+naolin = {email = "naolin@", short = "Naolin", full = "Naolin Johnson Vega"}
 
 dawn : AddressbookEntry
-dawn = {email = "dawn@", short = "Dawn", full = "Dawn Hatton" }
+dawn = {email = "dawn@hometownpettsitters.co", short = "Dawn", full = "Dawn Hatton" }
+
 
 felix : AddressbookEntry
 felix = {email = "felix@", short = "Felix", full = "Felix Tanenbaum" }
@@ -23,8 +29,7 @@ conf = {email = "committee@conf.org", short = confName, full = confName ++ "Conf
 
 
 welcome : ThreadScript
-welcome =
-    { subject = "Welcome to " ++ confName ++ "!"
+welcome = { subject = "Welcome to " ++ confName ++ "!"
     , scenes =
         [ { guards = []
           , key = Nothing
@@ -32,13 +37,44 @@ welcome =
           , receivedEmail =
                 { from = conf
                 , to = [ conf ]
-                , contents = [ "Welcome!" ]
+                , contents = [ 
+                        "Dear " ++ you.full ++ ","
+                      , "Welcome to " ++ confName ++ "2020! Below, you'll find key information about the next few days."
+                      , "Program:"
+                      , "The program is available online."
+                      , "Registration:"
+                      , "Registration will be available Tuesday evening from 5-7pm and each morning, 8-8:30."
+                      , "Meals:"
+                      , "Breakfast will be served 8-8:30, lunch 12-1 each day of the conference. Dinner is on your own."
+                ]
                 }
           , availableResponses = []
           }
         ]
     }
 
+petCheckIn1 : ThreadScript
+petCheckIn1 = 
+      { subject = "Evening visit"
+      , scenes = 
+            [ {
+                  guards = [ IsSet "welcome_in_inbox"]
+                  , key = Nothing
+                  , actions = []
+                  , receivedEmail = {
+                        from = dawn,
+                        to = [naolin],
+                        contents = ["Hi "++you.short
+                        , "Tunafish did SO WELL with her meds tonight. She greeted me right when I came in the door and ate her dinner, then joined me on the couch for some cuddles before her shot."
+                        , "[IMG, IMG]"
+                        , "Have a great evening!"
+                        , "-- Dawn"
+                        ]
+                  }
+                  , availableResponses = []
+             }
+            ]
+      }
 
 drinksScene : ThreadScript
 drinksScene =
@@ -49,7 +85,7 @@ drinksScene =
           , actions = []
           , receivedEmail =
                 { from = anuj
-                , to = [ dawn, felix ]
+                , to = [ naolin, felix ]
 
                 {- Turn on text wrap for now o.O -}
                 , contents =
@@ -64,23 +100,23 @@ drinksScene =
                 [ { shortText = "Ugh, Felix."
                   , actions = [ Enable "conflict" ] -- This enables the "conflict" response(s) in this thread
                   , email =
-                        { from = dawn
+                        { from = naolin
                         , to = [ anuj ]
-                        , contents = [ "Anuj, you know how much I hate Felix." ]
+                        , contents = [ "Anuj, you know Felix and I don't really get along." ]
                         }
                   }
                 , { shortText = "No thanks."
-                  , actions = [] -- No actions. In this case that means the thread is over.
+                  , actions = []
                   , email =
-                        { from = dawn
+                        { from = naolin
                         , to = [ anuj ]
                         , contents = [ "Sorry, I've got to meet up with my advisor. Say hi to Felix!" ]
                         }
                   }
                 , { shortText = "Sounds great."
-                  , actions = [ Set "has_plans" ] -- The "has_plans" global predicate will be set.
+                  , actions = [ Set "has_plans" ]
                   , email =
-                        { from = dawn
+                        { from = naolin
                         , to = [ anuj, felix ]
                         , contents = [ "Sounds great! I can't wait to see you again. Felix, I hope you can make it too!" ]
                         }
@@ -92,12 +128,12 @@ drinksScene =
           , actions = []
           , receivedEmail =
                 { from = anuj
-                , to = [ dawn ]
+                , to = [ naolin ]
                 , contents = [ "Oh crap. I still forget.", "I'm really sorry!", " --A" ]
                 }
           , availableResponses =
-                [ { shortText = "Okay", actions = [], email = { from = dawn, to = [ anuj ], contents = [ "It's okay." ] } }
-                , { shortText = "Hate this", actions = [], email = { from = dawn, to = [ anuj ], contents = [ "You keep doing this!" ] } }
+                [ { shortText = "Okay", actions = [], email = { from = naolin, to = [ anuj ], contents = [ "It's okay." ] } }
+                , { shortText = "Hate this", actions = [], email = { from = naolin, to = [ anuj ], contents = [ "You keep doing this!" ] } }
                 ]
           }
         , { key = Just "conflict" -- Multiple script responses can have the same key, but only one will ever send (the first one whose guards match)
@@ -105,7 +141,7 @@ drinksScene =
           , actions = []
           , receivedEmail =
                 { from = anuj
-                , to = [ dawn ]
+                , to = [ naolin ]
                 , contents = [ "What?" ]
                 }
           , availableResponses = []
@@ -118,4 +154,5 @@ myScript : List ThreadScript
 myScript =
     [ drinksScene
     , welcome
+    , petCheckIn1
     ]
