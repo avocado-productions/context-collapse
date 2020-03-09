@@ -24,6 +24,7 @@ type Action
 type Condition
     = IsSet String
     | IsUnset String
+    | IsResponded String String
 
 
 type alias EmailResponse =

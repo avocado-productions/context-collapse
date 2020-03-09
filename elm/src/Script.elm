@@ -16,6 +16,8 @@ naolin = {email = "naolin@", short = "Naolin", full = "Naolin Johnson Vega"}
 dawn : AddressbookEntry
 dawn = {email = "dawn@hometownpettsitters.co", short = "Dawn", full = "Dawn Hatton" }
 
+cynthia : AddressbookEntry
+cynthia = {email = "cynthia@", short = "Cynthia", full = "Cynthia Cui"}
 
 felix : AddressbookEntry
 felix = {email = "felix@", short = "Felix", full = "Felix Tanenbaum" }
@@ -26,6 +28,11 @@ anuj = {email = "anuj@", short = "Anuj", full = "Anuj Narayanan"}
 conf : AddressbookEntry
 conf = {email = "committee@conf.org", short = confName, full = confName ++ "Conference Organizers"}
 
+david : AddressbookEntry
+david = {email = "david@", short = "David", full = "David Sims, Ph.D."}
+
+kendall : AddressbookEntry
+kendall = {email = "kgraham@incorp.com", short = "Kendall", full="Kendall Graham"}
 
 
 welcome : ThreadScript
@@ -78,14 +85,14 @@ petCheckIn1 =
 
 drinksScene : ThreadScript
 drinksScene =
-    { subject = "Drinks tonight?"
+    { subject = "Anyone in town yet?"
     , scenes =
         [ { guards = [ IsSet "welcome_in_inbox"]
           , key = Nothing -- UNNAMED script steps are root events
           , actions = []
           , receivedEmail =
                 { from = anuj
-                , to = [ naolin, felix ]
+                , to = [ naolin, felix, cynthia ]
 
                 {- Turn on text wrap for now o.O -}
                 , contents =
@@ -98,27 +105,27 @@ drinksScene =
                    but it keeps the data structures simpler. (Also allows sockpuppets?)
                 -}
                 [ { shortText = "Ugh, Felix."
-                  , actions = [ Enable "conflict" ] -- This enables the "conflict" response(s) in this thread
-                  , email =
+                  , actions = [ Enable "conflict", Enable "FelixReply" ] -- This enables the "conflict" response(s) in this thread
+                  , email = 
                         { from = naolin
                         , to = [ anuj ]
                         , contents = [ "Anuj, you know Felix and I don't really get along." ]
                         }
                   }
                 , { shortText = "No thanks."
-                  , actions = []
+                  , actions = [Enable "FelixReply"]
                   , email =
                         { from = naolin
                         , to = [ anuj ]
-                        , contents = [ "Sorry, I've got to meet up with my advisor. Say hi to Felix!" ]
+                        , contents = [ "Sorry, I've got to work on the slides for my talk. Have fun!" ]
                         }
                   }
                 , { shortText = "Sounds great."
-                  , actions = [ Set "has_plans" ]
+                  , actions = [ Set "hasPlans", Enable "AnujHappy", Enable "FelixReply" ]
                   , email =
                         { from = naolin
-                        , to = [ anuj, felix ]
-                        , contents = [ "Sounds great! I can't wait to see you again. Felix, I hope you can make it too!" ]
+                        , to = [ anuj, felix, cynthia ]
+                        , contents = [ "Sounds great! I can't wait to see everyone." ]
                         }
                   }
                 ]
@@ -133,7 +140,7 @@ drinksScene =
                 }
           , availableResponses =
                 [ { shortText = "Okay", actions = [], email = { from = naolin, to = [ anuj ], contents = [ "It's okay." ] } }
-                , { shortText = "Hate this", actions = [], email = { from = naolin, to = [ anuj ], contents = [ "You keep doing this!" ] } }
+                -- , { shortText = "Hate this", actions = [], email = { from = naolin, to = [ anuj ], contents = [ "You keep doing this!" ] } }
                 ]
           }
         , { key = Just "conflict" -- Multiple script responses can have the same key, but only one will ever send (the first one whose guards match)
@@ -146,8 +153,63 @@ drinksScene =
                 }
           , availableResponses = []
           }
+        , { key = Just "AnujHappy"
+          , guards = []
+          , actions = []
+          , receivedEmail = 
+            { from = anuj
+            , to = [naolin]
+            , contents = [ "Hooray! See you soon.", "-- A"]
+            }
+          , availableResponses = [
+              { shortText = "Actually..."
+              , actions = [Unset "hasPlans"]
+              , email = {from=naolin, to=[anuj, felix, cynthia], contents=["Sorry, something came up. I need to back out. Have fun!"]}
+              }
+            ]
+          }
+         , { key = Just "FelixReply"
+          , guards = []
+          , actions = [Set "AnujThreadSeen"]
+          , receivedEmail = 
+            { from = felix
+            , to = [anuj, naolin, cynthia]
+            , contents = [ "Sounds great! I'll be there. Brought cards for after.", "- Felix"]
+            }
+          , availableResponses = [
+            ]
+          } 
         ]
     }
+
+bossConnection = 
+      { subject = "Drinks tonight"
+      , scenes = 
+            [ {
+                  guards = [ IsSet "AnujThreadSeen"]
+                  , key = Nothing
+                  , actions = []
+                  , receivedEmail = {
+                        from = david,
+                        to = [naolin, kendall],
+                        contents = ["Hi "++you.short++","
+                        , "I was talking to Kendall about your work and he was really interested. There might be a potential client lead in store. Want to join us at Avarice Bar around 6 to talk shop?"
+                        , "-- David"
+                        ]
+                  }
+                  , availableResponses = [
+                        { shortText = "I can't..."
+                        , actions = []
+                        , email = {from=naolin, to=[david, kendall], contents=["I wish I could, but I already made plans. Maybe we can talk tomorrow at the first coffee break?"]}
+                        }
+                      , { shortText = "Of course!"
+                        , actions = []
+                        , email = {from=naolin, to=[david, kendall], contents=["Dr. Graham, I'm such an admirer of your work! Of course! I'll see you there."]}
+                        }
+                  ]
+             }
+            ]
+      }
 
 
 myScript : List ThreadScript
@@ -155,4 +217,5 @@ myScript =
     [ drinksScene
     , welcome
     , petCheckIn1
+    , bossConnection
     ]

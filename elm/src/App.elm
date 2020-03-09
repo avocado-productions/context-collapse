@@ -253,6 +253,8 @@ guardPassesInContext globalContext cond =
         Script.IsUnset str ->
             not <| Set.member str globalContext.predicates
 
+        _ -> False -- XXX TODO
+
 
 sceneEnabledInContext : App.GlobalContext -> App.ThreadScript -> Script.ThreadScene -> Maybe ( App.ThreadScript, Script.ThreadScene )
 sceneEnabledInContext globalContext threadContext scene =
