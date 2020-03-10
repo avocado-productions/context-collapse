@@ -4,8 +4,6 @@ import AppTypes as App
 import Browser
 import Cmd.Extra as C
 import Delay
-import Dict
-import Example
 import List.Extra
 import Script as S
 import ScriptTypes as Script
