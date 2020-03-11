@@ -11,22 +11,22 @@ you : AddressbookEntry
 you = naolin
 
 naolin : AddressbookEntry
-naolin = {email = "naolin@", short = "Naolin", full = "Naolin Johnson Vega"}
+naolin = {email = "naolin@panopticorp.co", short = "Naolin", full = "Naolin Dawson Vega"}
 
 dawn : AddressbookEntry
-dawn = {email = "dawn@hometownpettsitters.co", short = "Dawn", full = "Dawn Hatton" }
+dawn = {email = "dawn@hometownpettsitters.com", short = "Dawn", full = "Dawn Hatton" }
 
 cynthia : AddressbookEntry
-cynthia = {email = "cynthia@", short = "Cynthia", full = "Cynthia Cui"}
+cynthia = {email = "cynthia@panopticorp.co", short = "Cynthia", full = "Cynthia Cui"}
 
 felix : AddressbookEntry
-felix = {email = "felix@", short = "Felix", full = "Felix Tanenbaum" }
+felix = {email = "felix@panopticorp.co", short = "Felix", full = "Felix Tanenbaum" }
 
 anuj : AddressbookEntry
-anuj = {email = "anuj@", short = "Anuj", full = "Anuj Narayanan"}
+anuj = {email = "anuj@panopticorp.co", short = "Anuj", full = "Anuj Narayanan"}
 
 conf : AddressbookEntry
-conf = {email = "committee@conf.org", short = confName, full = confName ++ "Conference Organizers"}
+conf = {email = "committee@irisconf.org", short = confName, full = confName ++ "Conference Organizers"}
 
 david : AddressbookEntry
 david = {email = "david@", short = "David", full = "David Sims, Ph.D."}
@@ -34,6 +34,8 @@ david = {email = "david@", short = "David", full = "David Sims, Ph.D."}
 kendall : AddressbookEntry
 kendall = {email = "kgraham@incorp.com", short = "Kendall", full="Kendall Graham"}
 
+figit : AddressbookEntry
+figit = {email = "statsbot@figit.com", short="Figit", full ="Figit, Inc."}
 
 welcome : ThreadScript
 welcome = { subject = "Welcome to " ++ confName ++ "!"
@@ -83,8 +85,8 @@ petCheckIn1 =
             ]
       }
 
-drinksScene : ThreadScript
-drinksScene =
+bossDrinksThread : ThreadScript
+bossDrinksThread =
     { subject = "Anyone in town yet?"
     , scenes =
         [ { guards = [ IsSet "welcome_in_inbox"]
@@ -182,6 +184,7 @@ drinksScene =
         ]
     }
 
+bossConnection : ThreadScript
 bossConnection = 
       { subject = "Drinks tonight"
       , scenes = 
@@ -193,29 +196,108 @@ bossConnection =
                         from = david,
                         to = [naolin, kendall],
                         contents = ["Hi "++you.short++","
-                        , "I was talking to Kendall about your work and he was really interested. There might be a potential client lead in store. Want to join us at Avarice Bar around 6 to talk shop?"
+                        , "I was talking to Kendall about your work and he was really interested. "
+                              ++ "There might be a potential client lead in store. Want to join us "
+                              ++ "at Avarice Bar around 6 to talk shop?"
                         , "-- David"
                         ]
                   }
                   , availableResponses = [
                         { shortText = "I can't..."
-                        , actions = []
-                        , email = {from=naolin, to=[david, kendall], contents=["I wish I could, but I already made plans. Maybe we can talk tomorrow at the first coffee break?"]}
+                        , actions = [Set "day0End"]
+                        , email = {from=naolin
+                              , to=[david, kendall]
+                              , contents=["I wish I could, but I already made plans. "
+                                    ++ "Maybe we can talk tomorrow at the first coffee break?"
+                                ]
+                              }
                         }
                       , { shortText = "Of course!"
-                        , actions = []
-                        , email = {from=naolin, to=[david, kendall], contents=["Dr. Graham, I'm such an admirer of your work! Of course! I'll see you there."]}
+                        , actions = [Set "day0End"]
+                        , email = {from=naolin
+                              , to=[david, kendall]
+                              , contents=["Dr. Graham, I'm such an admirer of your work! "
+                                    ++ "Of course! I'll see you there."]
+                              }
                         }
                   ]
              }
             ]
       }
 
+{- type alias ThreadScene =
+    { key : Maybe String
+    , guards : List Condition
+    , receivedEmail : Email
+    , actions : List Action
+    , availableResponses : List EmailResponse
+    }
+-}
+
+deviceReport : ThreadScript
+deviceReport = { subject = "Your Daily Summary from "++figit.short
+      , scenes = [deviceReportScene]
+      }
+deviceReportScene : ThreadScene
+deviceReportScene = {key = Nothing
+      , guards = [IsSet "day0End"]
+      , receivedEmail = {from=figit
+            , to=[you]
+            , contents=["Hi "++you.short++","
+                  , "Here's how your Tuesday went:"
+                  , "Total steps: 9,300 (Goal: 10,000)"
+                  , "Max heart rate: 180 BPM"
+                  , "Activity level: slightly below normal"
+                  , "Keep up the good work!"
+                  , "--"++figit.full
+                  ]
+            }
+      , actions = []
+      , availableResponses = []
+      }
+
+cynthiaPlea : ThreadScript
+cynthiaPlea = { subject = "Hey..."
+      , scenes = [cynthiaPleaScene]
+      }
+
+cynthiaPleaScene : ThreadScene
+cynthiaPleaScene =
+      { key = Nothing
+      , guards = [IsSet "day0End"]
+      , receivedEmail = 
+            {from=cynthia
+            , to=[dawn]
+            , contents=["Hey "++you.short++","
+                  , "Do you have some time to talk today? I need some advice."
+                  , "- Cynthia"
+                  ]
+            }
+      , actions = []
+      , availableResponses = [{ shortText = "I can't..."
+                        , actions = []
+                        , email = {from=naolin
+                              , to=[cynthia]
+                              , contents=["I wish I could, but I already made plans. "
+                                    ++ "Maybe we can talk tomorrow sometime?"]
+                              }
+                        }
+                      , { shortText = "Of course!"
+                        , actions = []
+                        , email = {from=naolin
+                              , to=[cynthia]
+                              , contents=["Of course, C, I'm here for you. "
+                                    ++ "Find me at the break."]
+                              }
+                        }]
+      }
 
 myScript : List ThreadScript
 myScript =
-    [ drinksScene
+    [ bossDrinksThread
     , welcome
     , petCheckIn1
     , bossConnection
+    , cynthiaPlea
+    , deviceReport
     ]
