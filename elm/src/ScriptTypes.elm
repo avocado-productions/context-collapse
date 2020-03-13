@@ -27,8 +27,15 @@ type Condition
     | IsResponded String String
 
 
+type alias EmailResponseGuard = 
+    { condition : Condition
+    , from : AddressbookEntry
+    , message : String
+    }
+
 type alias EmailResponse =
-    { shortText : String
+    { guards : List EmailResponseGuard
+    , shortText : String
     , email : Email
     , actions : List Action
     }

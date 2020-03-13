@@ -34,6 +34,7 @@ exampleScript =
                    but it keeps the data structures simpler. (Also allows sockpuppets?)
                 -}
                 [ { shortText = "Ugh, Felix."
+                  , guards = []
                   , actions = [ Enable "conflict" ] -- This enables the "conflict" response(s) in this thread
                   , email =
                         { from = dawn
@@ -42,6 +43,7 @@ exampleScript =
                         }
                   }
                 , { shortText = "No thanks."
+                  , guards = []
                   , actions = [] -- No actions. In this case that means the thread is over.
                   , email =
                         { from = dawn
@@ -50,6 +52,7 @@ exampleScript =
                         }
                   }
                 , { shortText = "Sounds great."
+                  , guards = []
                   , actions = [ Set "has_plans" ] -- The "has_plans" global predicate will be set.
                   , email =
                         { from = dawn
@@ -68,8 +71,8 @@ exampleScript =
                 , contents = [ "Oh crap. I still forget.", "I'm really sorry!", " --A" ]
                 }
           , availableResponses =
-                [ { shortText = "Okay", actions = [], email = { from = dawn, to = [ anuj ], contents = [ "It's okay." ] } }
-                , { shortText = "Hate this", actions = [], email = { from = dawn, to = [ anuj ], contents = [ "You keep doing this!" ] } }
+                [ { shortText = "Okay", guards = [], actions = [], email = { from = dawn, to = [ anuj ], contents = [ "It's okay." ] } }
+                , { shortText = "Hate this", guards = [], actions = [], email = { from = dawn, to = [ anuj ], contents = [ "You keep doing this!" ] } }
                 ]
           }
         , { key = Just "conflict" -- Multiple script responses can have the same key, but only one will ever send (the first one whose guards match)
