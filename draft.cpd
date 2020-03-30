@@ -68,7 +68,7 @@ spot for dinner. Anyone else here and want to join?
 ! response "Sounds great." -> 
   ! to anuj
   ! cc felix cynthia
-  ! set hasPlans
+  ! onSend |> set hasPlans
   ! enable -> Anuj is happy
   ! enable -> Felix replies  
   Sounds great! I can't wait to see everyone.
@@ -101,7 +101,7 @@ Hooray! See you soon.
 ! from felix
 ! to anuj
 ! cc cynthia 
-! set felixReplied
+! onSend |> set felixReplied
 Sounds great! I'll be there. Brought cards for after.
 
 - Felix
