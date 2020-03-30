@@ -10,7 +10,7 @@
 ! contact anuj |> email "anuj@panopticorp.co"
     |> short "Anuj" |> full "Anuj Narayanan"
 ! contact conf |> email "committee@irisconf.org"
-    |> short "IRIS" |> full "IRIS Conference Organizers"
+    |> short "IRIS" |> full "IRISConf Organizers"
 ! contact david |> email "david@"
     |> short "David" |> full "David Sims, Ph.D."
 ! contact kendall |> email "kgraham@incorp.com"
@@ -57,11 +57,13 @@ spot for dinner. Anyone else here and want to join?
 ! response "Ugh, Felix." ->
   ! to anuj
   ! enable -> Anuj is sorry
-  ! enable -> Felix replies  
+  ! enable -> Felix replies
+  ! onSend |> set hasPlans
   Anuj, you know Felix and I don't really get along
 
 ! response "No thanks." ->
   ! to anuj
+  ! onSend |> set hasPlans
   ! enable -> Felix replies  
   Sorry, I've got to work on the slides for my talk. Have fun!
 
@@ -107,7 +109,7 @@ Sounds great! I'll be there. Brought cards for after.
 - Felix
 
 # Evening Visit
-! requires |> isSet iris_welcome_recv
+! requires |> isSet iris_welcome_recv |> isSet hasPlans
 ! from dawn
 ! to naolin
 

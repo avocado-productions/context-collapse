@@ -10,6 +10,7 @@ import Element.Font as Font
 import Html exposing (Html)
 import List.Extra
 import ScriptTypes as Script
+import Set
 
 
 view : App.Model -> Html App.Msg
@@ -124,6 +125,35 @@ rightBuffer =
     px 35
 
 
+getThreadParticipants : List Script.Email -> List Script.AddressbookEntry
+getThreadParticipants emails =
+    List.map .from emails
+        -- uniq
+        |> List.foldl
+            (\sender ( set, uniq ) ->
+                if Set.member sender.email set then
+                    ( set, uniq )
+
+                else
+                    ( Set.insert sender.email set, sender :: uniq )
+            )
+            ( Set.empty, [] )
+        |> (\( _, uniq ) -> List.reverse uniq)
+
+
+participantsToString : List Script.AddressbookEntry -> String
+participantsToString senders =
+    case senders of
+        [] ->
+            "[error, no senders]"
+
+        [ sender ] ->
+            sender.full
+
+        _ ->
+            List.map .short senders |> List.intersperse ", " |> String.concat
+
+
 viewThreadPreview : App.ThreadLocation -> App.ActiveThread -> Element App.Msg
 viewThreadPreview loc thread =
     let
@@ -144,7 +174,7 @@ viewThreadPreview loc thread =
         , el [ width leftBuffer2, centerY ] (el [ centerX ] (Element.html important))
         , el
             [ weight, width (px 250), height fill, Element.pointer, Events.onClick (App.OpenThread loc) ]
-            (el [ centerY ] (text "(todo: participants)"))
+            (el [ centerY ] (thread.contents |> getThreadParticipants |> participantsToString |> text))
         , el
             [ weight, width fill, height fill, Element.pointer, Events.onClick (App.OpenThread loc) ]
             (el [ centerY ] (text thread.subject))
