@@ -1,0 +1,126 @@
+! youare naolin
+! contact naolin |> email "naolin@panopticorp.co"
+    |> short "Naolin" |> full "Naolin Dawson Vega"
+! contact dawn |> email "dawn@hometownpettsitters.com"
+    |> short "Dawn" |> full "Dawn Hatton"
+! contact cynthia |> email "cynthia@panopticorp.co"
+    |> short "Cynthia" |> full "Cynthia Cui"
+! contact felix |> email "felix@panopticorp.co"
+    |> short "Felix" |> full "Felix Tanenbaum"
+! contact anuj |> email "anuj@panopticorp.co"
+    |> short "Anuj" |> full "Anuj Narayanan"
+! contact conf |> email "committee@irisconf.org"
+    |> short "IRIS" |> full "IRIS Conference Organizers"
+! contact david |> email "david@"
+    |> short "David" |> full "David Sims, Ph.D."
+! contact kendall |> email "kgraham@incorp.com"
+    |> short "Kendall" |> full "Kendall Graham"
+! contact figit |> email "statsbot@figit.com"
+    |> short "Figit" |> full "Figit, Inc."
+
+
+
+# Welcome to IRIS
+! from conf
+! to conf
+! onRecv |> set iris_welcome_recv
+
+Dear Naolin,
+
+Welcome to IRIS 2020! Below, you'll find key information about the next few 
+days.
+
+**Program:**
+The program is available online.
+
+**Registration:**
+Registration will be available Tuesday evening from 5-7pm and each morning, 
+8-8:30.
+
+**Meals:**
+Breakfast will be served 8-8:30, lunch 12-1 each day of the conference. Dinner 
+is on your own.
+2
+
+# Anyone in town yet?
+! requires |> isSet iris_welcome_recv
+! from anuj
+! to naolin felix cynthia
+
+
+My flight just landed. It'll probably be another 30 til I get to the
+hotel but then I was thinking of hitting the bar and finding a
+spot for dinner. Anyone else here and want to join?
+
+ — Anuj
+
+! response "Ugh, Felix." ->
+  ! to anuj
+  ! enable -> Anuj is sorry
+  ! enable -> Felix replies  
+  Anuj, you know Felix and I don't really get along
+
+! response "No thanks." ->
+  ! to anuj
+  ! enable -> Felix replies  
+  Sorry, I've got to work on the slides for my talk. Have fun!
+
+! response "Sounds great." -> 
+  ! to anuj
+  ! cc felix cynthia
+  ! set hasPlans
+  ! enable -> Anuj is happy
+  ! enable -> Felix replies  
+  Sounds great! I can't wait to see everyone.
+
+### Anuj is sorry
+! from anuj
+! to naolin
+Oh crap. I still forget.
+I'm really sorry!
+—A
+
+! response "Okay..." ->
+  ! to anuj
+  It's okay.
+
+### Anuj is happy
+! from anuj
+! to naolin
+Hooray! See you soon.
+
+—A
+
+! response "Actually..." ->
+  ! requires |> isSet cyntha_needs_to_talk
+  ! to anuj
+  ! cc felix cynthia
+  Sorry, something came up. I need to back out. Have fun!
+
+### Felix replies 
+! from felix
+! to anuj
+! cc cynthia 
+! set felixReplied
+Sounds great! I'll be there. Brought cards for after.
+
+- Felix
+
+# Evening Visit
+! requires |> isSet iris_welcome_recv
+! from dawn
+! to naolin
+
+Hi Naolin!
+
+Tunafish did SO WELL with her meds tonight. She greeted me right
+when I came in the door and ate her dinner, then joined me on the
+couch for some cuddles before her shot.
+
+! image "tunafish1.jpg"
+
+! image "tunafish2.jpg"
+
+Have a great evening!
+
+— Dawn

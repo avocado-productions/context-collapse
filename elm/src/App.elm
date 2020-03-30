@@ -5,7 +5,7 @@ import Browser
 import Cmd.Extra as C
 import Delay
 import List.Extra
-import Script as S
+import Hacky as S
 import ScriptTypes as Script
 import Set
 import Util

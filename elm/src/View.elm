@@ -70,16 +70,17 @@ browserUI model =
 leftBar : Element msg
 leftBar =
     el
-        [ width (px 250)
+        [ width <| px 250
         , height fill
         ]
         (column
             [ width fill
             , height fill
-            , spacing 20
+            , spacing 5
             ]
-            [ el [] Element.none
-            , el [ Element.centerX ] (text "Gabble Mail")
+            [ el [ height <| px 45 ] Element.none
+            , el [ Element.centerX ] (text "Camperdown")
+            , el [ Element.centerX ] (text "Email Client")
             ]
         )
 

@@ -1,4 +1,4 @@
-module ScriptTypes exposing (Action(..), AddressbookEntry, Condition(..), Email, EmailResponse, ThreadScene, ThreadScript)
+module ScriptTypes exposing (Action(..), AddressbookEntry, Condition(..), Email, EmailResponse, EmailResponseGuard, ThreadScene, ThreadScript)
 
 
 type alias AddressbookEntry =
@@ -27,11 +27,12 @@ type Condition
     | IsResponded String String
 
 
-type alias EmailResponseGuard = 
+type alias EmailResponseGuard =
     { condition : Condition
-    , from : AddressbookEntry
-    , message : String
+    , from : Maybe AddressbookEntry
+    , message : Maybe String
     }
+
 
 type alias EmailResponse =
     { guards : List EmailResponseGuard
