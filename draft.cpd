@@ -101,7 +101,7 @@ Hooray! See you soon.
 ! from felix
 ! to anuj
 ! cc cynthia 
-! onSend |> set felixReplied
+! onRecv |> set felixReplied
 Sounds great! I'll be there. Brought cards for after.
 
 - Felix
