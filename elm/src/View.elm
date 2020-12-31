@@ -27,9 +27,29 @@ suggestionColor =
     rgb255 50 130 255
 
 
+disabledSuggestionColor : Color
+disabledSuggestionColor =
+    rgb255 100 100 100
+
+
 buttonSpacing : Int
 buttonSpacing =
     20
+
+
+disabledSuggestionButton : String -> Element App.Msg
+disabledSuggestionButton shortMessage =
+    el
+        [ Font.color disabledSuggestionColor
+        , Background.color (rgb255 200 200 200)
+        , Border.color disabledSuggestionColor
+        , Border.solid
+        , Border.width 1
+        , Border.rounded 5
+        , paddingXY 20 10
+        , width shrink
+        ]
+        (text shortMessage)
 
 
 suggestionButton : Bool -> App.ThreadLocation -> Int -> String -> Element App.Msg
@@ -279,19 +299,39 @@ viewEmailResponse loc emailResponse =
         ]
 
 
-viewSuggestions : App.ThreadLocation -> List Script.EmailResponse -> Maybe Int -> Element App.Msg
-viewSuggestions loc responseOptions selectedIndex =
+guardPassesInContext : App.GlobalContext -> Script.Condition -> Bool
+guardPassesInContext globalContext cond =
+    case cond of
+        Script.IsSet str ->
+            Set.member str globalContext.predicates
+
+        Script.IsUnset str ->
+            not <| Set.member str globalContext.predicates
+
+
+suggestionButtonEnabled : App.GlobalContext -> List Script.EmailResponseGuard -> Bool
+suggestionButtonEnabled context guards =
+    List.all (\{ condition } -> guardPassesInContext context condition) guards
+
+
+viewSuggestions : App.GlobalContext -> App.ThreadLocation -> List Script.EmailResponse -> Maybe Int -> Element App.Msg
+viewSuggestions context loc responseOptions selectedIndex =
     column [ width fill ]
         [ row [ width fill ]
             [ el [ width leftBuffer ] none
             , wrappedRow [ spacing buttonSpacing, width fill ]
                 (List.indexedMap
                     (\suggestionIndex responseOption ->
-                        suggestionButton
-                            (selectedIndex == Just suggestionIndex)
-                            loc
-                            suggestionIndex
-                            responseOption.shortText
+                        if suggestionButtonEnabled context responseOption.guards then
+                            suggestionButton
+                                (selectedIndex == Just suggestionIndex)
+                                loc
+                                suggestionIndex
+                                responseOption.shortText
+
+                        else
+                            disabledSuggestionButton
+                                responseOption.shortText
                     )
                     responseOptions
                 )
@@ -307,8 +347,8 @@ viewSuggestions loc responseOptions selectedIndex =
         ]
 
 
-viewThread : App.ThreadLocation -> App.ActiveThread -> Element App.Msg
-viewThread threadIndex thread =
+viewThread : App.GlobalContext -> App.ThreadLocation -> App.ActiveThread -> Element App.Msg
+viewThread context threadIndex thread =
     column [ width fill, height fill, spacing 20 ]
         (el [ height (px 10) ] Element.none
             :: row [ width fill ]
@@ -321,10 +361,10 @@ viewThread threadIndex thread =
                         Element.none
 
                     App.Unread responseOptions selectedIndex ->
-                        viewSuggestions threadIndex responseOptions selectedIndex
+                        viewSuggestions context threadIndex responseOptions selectedIndex
 
                     App.Unresponded responseOptions selectedIndex ->
-                        viewSuggestions threadIndex responseOptions selectedIndex
+                        viewSuggestions context threadIndex responseOptions selectedIndex
                ]
         )
 
@@ -369,6 +409,6 @@ mainPanel model =
                     viewInbox model.inbox
 
                 Just ( loc, thread ) ->
-                    viewThread loc thread
+                    viewThread model.context loc thread
             )
         ]

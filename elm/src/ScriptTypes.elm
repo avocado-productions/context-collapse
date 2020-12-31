@@ -24,13 +24,11 @@ type Action
 type Condition
     = IsSet String
     | IsUnset String
-    | IsResponded String String
+    -- | IsResponded String String
 
 
 type alias EmailResponseGuard =
     { condition : Condition
-    , from : Maybe AddressbookEntry
-    , message : Maybe String
     }
 
 

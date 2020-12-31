@@ -5,7 +5,7 @@ import Browser
 import Cmd.Extra as C
 import Delay
 import List.Extra
-import Hacky as S
+import Script as S
 import ScriptTypes as Script
 import Set
 import Util
@@ -75,7 +75,7 @@ update msg model =
                 |> C.with Cmd.none
 
         App.OpenThread loc ->
-            { model | current = Just loc  }
+            { model | current = Just loc }
                 |> C.with Cmd.none
 
         App.MakeDecision loc response ->
@@ -250,8 +250,6 @@ guardPassesInContext globalContext cond =
 
         Script.IsUnset str ->
             not <| Set.member str globalContext.predicates
-
-        _ -> False -- XXX TODO
 
 
 sceneEnabledInContext : App.GlobalContext -> App.ThreadScript -> Script.ThreadScene -> Maybe ( App.ThreadScript, Script.ThreadScene )
