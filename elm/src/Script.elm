@@ -148,9 +148,19 @@ myScript =
                       }
                     ]
               }
+            , { key = Just "Felix replies"
+              , actions = [ Types.Set "felixReplied" ]
+              , guards = []
+              , receivedEmail =
+                    { from = felix
+                    , to = [ anuj ]
+                    , contents = [ "Sounds great! I'll be there. Brought cards for after.", "- Felix" ]
+                    }
+              , availableResponses = []
+              }
             , { key = Just "Anuj is sorry"
               , actions = []
-              , guards = []
+              , guards = [ Types.IsSet "felixReplied" ]
               , receivedEmail =
                     { from = anuj
                     , to = [ naolin ]
@@ -166,7 +176,7 @@ myScript =
               }
             , { key = Just "Anuj is happy"
               , actions = []
-              , guards = []
+              , guards = [ Types.IsSet "felixReplied" ]
               , receivedEmail = { from = anuj, to = [ naolin ], contents = [ "Hooray! See you soon.", "—A" ] }
               , availableResponses =
                     [ { shortText = "Actually..."
@@ -179,16 +189,6 @@ myScript =
                             }
                       }
                     ]
-              }
-            , { key = Just "Felix replies"
-              , actions = [ Types.Set "felixReplied" ]
-              , guards = []
-              , receivedEmail =
-                    { from = felix
-                    , to = [ anuj ]
-                    , contents = [ "Sounds great! I'll be there. Brought cards for after.", "- Felix" ]
-                    }
-              , availableResponses = []
               }
             ]
       }
