@@ -4,9 +4,11 @@
 
 Make sure you have npm installed, then from the root directory:
 
-$ npm i
+`$ npm i
+
 $ npm i elm
-$ npm start
+
+$ npm start`
 
 You'll need to have a stable internet connection in order for the elm build
 script to download all its dependencies and compile successfully.
