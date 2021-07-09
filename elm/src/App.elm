@@ -182,6 +182,7 @@ update msg model =
                                     (\thread -> { thread | state = Archived })
                                 |> advanceInbox model
                         , state = InboxOpen
+                        , blocked = Nothing -- inbox has been advanced
                     }
                         |> Cmd.pure
 
@@ -446,11 +447,19 @@ toolbar model =
 
 inboxFull : Model -> Element Msg
 inboxFull model =
-    column [ Background.color (rgb255 200 200 200), spacing 1, width fill, height fill ] <|
-        (model.inbox
-            |> List.indexedMap (threadPreview model)
-            |> List.filterMap identity
-        )
+    if List.all (\{ state } -> state == Archived) model.inbox then
+        el [ Background.color uiGray, width fill, height fill ] <|
+            column [ centerY , spacing 20, width fill ]
+                [ el [ centerX, Font.color dimmedText ] <| text "You're all done!"
+                , el [ centerX, Font.color dimmedText, Font.size 10 ] <| text "Nothing in Inbox"
+                ]
+
+    else
+        column [ Background.color (rgb255 200 200 200), spacing 1, width fill, height fill ] <|
+            (model.inbox
+                |> List.indexedMap (threadPreview model)
+                |> List.filterMap identity
+            )
 
 
 getScript : String -> Model -> Script.ThreadScript
