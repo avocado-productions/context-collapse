@@ -1,0 +1,94 @@
+! contact Me "naolin@panopticorp.co"
+    |> full "Naolin Dawson Vega"
+
+! contact A "a@letter.com"
+    |> full "A. Aaaaaaa"
+    |> short "MrA"
+
+! contact B "b@letter.com"
+    |> full "B. Bbbbbb"
+    |> short "Bee"
+
+! contact C "c@letter.com"
+    |> full "C. Cccccc"
+
+# Conversation with A
+! from A |> to Me |> to B
+
+Hello world! It's _great_ to see you today.
+
+Of course we'll get to the meeting notes later.
+
+! [Polite] |> to A |> to B >>
+  What a wonderful email. You're sure nice and good looking
+  ! next -> a-one
+! [Rude] |> to A >>
+  WTF, Mate?
+  ! next -> a-one
+
+## a-one
+! from A |> to Me
+
+I think you should bring the sex to band rehersal
+
+! next -> a-two
+
+## a-two
+! from A |> to Me
+
+Oh my god I meant "you should bring the **sax**," I'm so
+embarassed!
+
+! [Weird] |> to A >>
+  Yeah wtf mate.
+  ! next -> a-three
+
+! [Whatever] |> to A >>
+  Hahaha damn you autocorrect, right?
+  ! next -> a-three
+
+
+! [Flirt] |> to A >>
+  Oh shoot I was all ready for the best band practice
+  ever after the first email.
+
+  Just kidding... unless... 👉👈
+
+  ! next -> a-four
+
+## a-three
+! from A |> to Me
+
+Good practice! Same time next week?
+
+## a-four
+! from A |> to Me
+
+Good... uh... practice, I guess?
+
+See you tonight? 😘
+
+# SPAAAAMMMM 1
+! from B
+
+! [Unsubscribe] |> to B >> UNSUBSCRIBE!
+
+# SPAAAAMMMM 2
+! from B
+
+! [Unsubscribe] |> to B >> UNSUBSCRIBE!
+
+# SPAAAAMMMM 3
+! from B
+
+! [Unsubscribe] |> to B >> UNSUBSCRIBE!
+
+# SPAAAAMMMM 4
+! from B
+
+! [Unsubscribe] |> to B >> UNSUBSCRIBE!
+
+# SPAAAAMMMM 5
+! from B
+
+! [Unsubscribe] |> to B >> UNSUBSCRIBE!
