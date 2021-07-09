@@ -13,53 +13,55 @@ me =
         |> Contact.full "Naolin Dawson Vega"
 
 
-a : Types.AddressbookEntry
-a =
+dslist : Types.AddressbookEntry
+dslist =
     Contact.create
-        |> Contact.email "a@letter.com"
-        |> Contact.short "A"
-        |> Contact.full "A. AAAAAAA"
+        |> Contact.email "ds5.social@googlegroups.com"
+        |> Contact.short "DS 5"
+        |> Contact.full "The DS 5 Mailing List"
 
 
-b : Types.AddressbookEntry
-b =
+advisor : Types.AddressbookEntry
+advisor =
     Contact.create
-        |> Contact.email "b@letter.com"
-        |> Contact.short "B"
-        |> Contact.full "B. BBBBBB"
+        |> Contact.email "wzhou@uni.edu"
+        |> Contact.short "Wei Zhou"
+        |> Contact.full "Prof. Wei Zhou"
 
 
-c : Types.AddressbookEntry
-c =
+college_friend : Types.AddressbookEntry
+college_friend =
     Contact.create
-        |> Contact.email "c@letter.com"
-        |> Contact.short "C"
-        |> Contact.full "C. CCCCCCCC"
+        |> Contact.email "christine@upprcut.com"
+        |> Contact.short "C. Malcolm"
+        |> Contact.full "Christine Malcolm"
 
 
 myScript : List Types.ThreadScript
 myScript =
-    [ { id = "convo-a"
-      , subject = "Conversation with A"
+    [ { id = "convo-ds"
+      , subject = "Drinks tonight?"
       , first =
-            { from = a
+            { from = dslist
             , to = [ me ]
-            , contents = [ "Hello world" ]
+            , contents = [ "Who wants to grab a drink at the DS tonight?" ]
             }
       , actions =
-            [ { shortText = "Response"
+            [ { shortText = "Meet somewhere closer?"
               , email =
                     { from = me
-                    , to = [ a ]
-                    , contents = [ "Response" ]
+                    , to = [ dslist ]
+                    , contents = [ """Could we meet somewhere closer to my
+                    apartment? There's a new bar called Apero that just
+                    opened up down the street.""" ]
                     }
               , next = "a-one"
               }
-            , { shortText = "Duplicate"
+            , { shortText = "I'm in"
               , email =
                     { from = me
-                    , to = [ a ]
-                    , contents = [ "Duplicate" ]
+                    , to = [ dslist ]
+                    , contents = [ "Save me a seat!" ]
                     }
               , next = "a-one"
               }
@@ -68,16 +70,16 @@ myScript =
             Dict.fromList
                 [ ( "a-one"
                   , { receivedEmail =
-                        { from = a
+                        { from = dslist
                         , to = [ me ]
-                        , contents = [ "Hello world" ]
+                        , contents = [ "Response from DS 5" ]
                         }
                     , actions =
                         [ Types.Respond
                             { shortText = "Go Left"
                             , email =
                                 { from = me
-                                , to = [ a ]
+                                , to = [ dslist ]
                                 , contents = [ "Go Left" ]
                                 }
                             , next = "a-two"
@@ -86,7 +88,7 @@ myScript =
                             { shortText = "Go Right"
                             , email =
                                 { from = me
-                                , to = [ a ]
+                                , to = [ dslist ]
                                 , contents = [ "Go Right" ]
                                 }
                             , next = "a-three"
@@ -96,7 +98,7 @@ myScript =
                   )
                 , ( "a-two"
                   , { receivedEmail =
-                        { from = a
+                        { from = dslist
                         , to = [ me ]
                         , contents = [ "Good ending" ]
                         }
@@ -106,7 +108,7 @@ myScript =
                   )
                 , ( "a-three"
                   , { receivedEmail =
-                        { from = a
+                        { from = dslist
                         , to = [ me ]
                         , contents = [ "Bad ending starts" ]
                         }
@@ -116,7 +118,7 @@ myScript =
                   )
                 , ( "a-four"
                   , { receivedEmail =
-                        { from = a
+                        { from = dslist
                         , to = [ me ]
                         , contents = [ "Bad ending continues" ]
                         }
@@ -126,7 +128,7 @@ myScript =
                   )
                 , ( "a-five"
                   , { receivedEmail =
-                        { from = a
+                        { from = dslist
                         , to = [ me ]
                         , contents = [ "Bad ending ends" ]
                         }
@@ -137,9 +139,9 @@ myScript =
                 ]
       }
     , { id = "convo-b"
-      , subject = "Conversation with B"
+      , subject = "Your thesis progress"
       , first =
-            { from = b
+            { from = advisor
             , to = [ me ]
             , contents = [ "First email" ]
             }
@@ -147,7 +149,7 @@ myScript =
             [ { shortText = "Respond"
               , email =
                     { from = me
-                    , to = [ b ]
+                    , to = [ advisor ]
                     , contents = [ "First response" ]
                     }
               , next = "b-2"
@@ -157,7 +159,7 @@ myScript =
             Dict.fromList
                 [ ( "b-2"
                   , { receivedEmail =
-                        { from = b
+                        { from = advisor
                         , to = [ me ]
                         , contents = [ "Second email" ]
                         }
@@ -166,7 +168,7 @@ myScript =
                             { shortText = "Respond"
                             , email =
                                 { from = me
-                                , to = [ b ]
+                                , to = [ advisor ]
                                 , contents = [ "Second response" ]
                                 }
                             , next = "b-3"
@@ -176,7 +178,7 @@ myScript =
                   )
                 , ( "b-3"
                   , { receivedEmail =
-                        { from = b
+                        { from = advisor
                         , to = [ me ]
                         , contents = [ "Third email" ]
                         }
@@ -185,7 +187,7 @@ myScript =
                             { shortText = "Respond"
                             , email =
                                 { from = me
-                                , to = [ b ]
+                                , to = [ advisor ]
                                 , contents = [ "Third response" ]
                                 }
                             , next = "b-4"
@@ -195,7 +197,7 @@ myScript =
                   )
                 , ( "b-4"
                   , { receivedEmail =
-                        { from = b
+                        { from = advisor
                         , to = [ me ]
                         , contents = [ "Fourth email" ]
                         }
@@ -206,9 +208,9 @@ myScript =
                 ]
       }
     , { id = "convo-c"
-      , subject = "Conversation with C"
+      , subject = "Jobs at my company"
       , first =
-            { from = c
+            { from = college_friend
             , to = [ me ]
             , contents = [ "First email" ]
             }
@@ -216,7 +218,7 @@ myScript =
             [ { shortText = "Respond"
               , email =
                     { from = me
-                    , to = [ c ]
+                    , to = [ college_friend ]
                     , contents = [ "First response" ]
                     }
               , next = "c-2"
@@ -226,7 +228,7 @@ myScript =
             Dict.fromList
                 [ ( "c-2"
                   , { receivedEmail =
-                        { from = c
+                        { from = college_friend
                         , to = [ me ]
                         , contents = [ "Second email" ]
                         }
@@ -235,7 +237,7 @@ myScript =
                             { shortText = "Respond"
                             , email =
                                 { from = me
-                                , to = [ c ]
+                                , to = [ college_friend ]
                                 , contents = [ "Second response" ]
                                 }
                             , next = "c-3"
@@ -245,7 +247,7 @@ myScript =
                   )
                 , ( "c-3"
                   , { receivedEmail =
-                        { from = c
+                        { from = college_friend
                         , to = [ me ]
                         , contents = [ "Third email" ]
                         }
@@ -254,7 +256,7 @@ myScript =
                             { shortText = "Respond"
                             , email =
                                 { from = me
-                                , to = [ c ]
+                                , to = [ college_friend ]
                                 , contents = [ "Third response" ]
                                 }
                             , next = "c-4"
@@ -264,7 +266,7 @@ myScript =
                   )
                 , ( "c-4"
                   , { receivedEmail =
-                        { from = c
+                        { from = college_friend
                         , to = [ me ]
                         , contents = [ "Fourth email" ]
                         }
