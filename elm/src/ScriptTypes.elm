@@ -25,6 +25,7 @@ type alias EmailResponse =
 type Action
     = Respond EmailResponse
     | Immediate String
+    | Archive
 
 
 type alias ThreadScene =

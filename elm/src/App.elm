@@ -58,10 +58,12 @@ type alias ActiveThread =
 
 
 type ActiveThreadState
-    = Responded
-    | Unread { responseOptions : List Script.EmailResponse }
+    = Responded { archivable : Bool }
+    | Archived
+    | Unread { archivable : Bool, responseOptions : List Script.EmailResponse }
     | Unresponded
-        { responseOptions : List Script.EmailResponse
+        { archivable : Bool
+        , responseOptions : List Script.EmailResponse
         , currentlySelectedOptionIndex : Maybe Int
         }
 
@@ -76,7 +78,7 @@ init () =
                 (\{ id, first, actions } ->
                     { scriptId = id
                     , contents = [ first ]
-                    , state = Unread { responseOptions = actions }
+                    , state = Unread { archivable = False, responseOptions = actions }
                     }
                 )
     , scripts = S.myScript
@@ -93,6 +95,7 @@ type Msg
     | OpenThread ThreadLocation
     | ToggleSuggestion Int
     | SelectSuggestion
+    | ArchiveThread
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -113,16 +116,17 @@ update msg model =
 
                             else
                                 case thread.state of
-                                    Unread { responseOptions } ->
+                                    Unread { archivable, responseOptions } ->
                                         { thread
                                             | state =
                                                 case responseOptions of
                                                     [] ->
-                                                        Responded
+                                                        Responded { archivable = archivable }
 
                                                     _ ->
                                                         Unresponded
-                                                            { responseOptions = responseOptions
+                                                            { archivable = archivable
+                                                            , responseOptions = responseOptions
                                                             , currentlySelectedOptionIndex = Nothing
                                                             }
                                         }
@@ -150,17 +154,34 @@ update msg model =
 
                                     else
                                         case thread.state of
-                                            Unresponded { responseOptions, currentlySelectedOptionIndex } ->
-                                                if currentlySelectedOptionIndex == Just n then
-                                                    { thread | state = Unresponded { responseOptions = responseOptions, currentlySelectedOptionIndex = Nothing } }
+                                            Unresponded state ->
+                                                if state.currentlySelectedOptionIndex == Just n then
+                                                    { thread | state = Unresponded { state | currentlySelectedOptionIndex = Nothing } }
 
                                                 else
-                                                    { thread | state = Unresponded { responseOptions = responseOptions, currentlySelectedOptionIndex = Just n } }
+                                                    { thread | state = Unresponded { state | currentlySelectedOptionIndex = Just n } }
 
                                             _ ->
                                                 thread
                                 )
                                 model.inbox
+                    }
+                        |> Cmd.pure
+
+                _ ->
+                    -- Should be impossible!
+                    model |> Cmd.pure
+
+        ArchiveThread ->
+            case model.state of
+                ThreadOpen { location } ->
+                    { model
+                        | inbox =
+                            model.inbox
+                                |> List.updateAt location.inboxIndex
+                                    (\thread -> { thread | state = Archived })
+                                |> advanceInbox model
+                        , state = InboxOpen
                     }
                         |> Cmd.pure
 
@@ -194,7 +215,7 @@ update msg model =
                                                 Just response ->
                                                     ( { thread
                                                         | contents = thread.contents ++ [ response.email ]
-                                                        , state = Responded
+                                                        , state = Responded { archivable = False }
                                                       }
                                                     , Just response.next
                                                     )
@@ -230,15 +251,15 @@ advanceInbox model inbox =
             case List.splitWhen (\thread -> thread.scriptId == scriptId) inbox of
                 Just ( prefix, thread :: postfix ) ->
                     case advanceThread model scriptId next of
-                        ( [], _ ) ->
+                        ( [], _, _ ) ->
                             -- Nothing matching `next` was found in the script for this thread
                             -- This could be made impossible, but for now just represents a finished script
                             inbox
 
-                        ( newEmails, responseOptions ) ->
+                        ( newEmails, responseOptions, archivable ) ->
                             { thread
                                 | contents = thread.contents ++ newEmails
-                                , state = Unread { responseOptions = responseOptions }
+                                , state = Unread { archivable = archivable, responseOptions = responseOptions }
                             }
                                 :: prefix
                                 ++ postfix
@@ -248,7 +269,7 @@ advanceInbox model inbox =
                     inbox
 
 
-advanceThread : Model -> String -> String -> ( List Script.Email, List Script.EmailResponse )
+advanceThread : Model -> String -> String -> ( List Script.Email, List Script.EmailResponse, Bool )
 advanceThread model scriptId next =
     let
         script =
@@ -290,17 +311,17 @@ advanceThread model scriptId next =
                         -- to be resolved in a thread by way of
                         -- the Immediate action.
                         let
-                            ( newEmails, action ) =
+                            ( newEmails, action, archivable ) =
                                 advanceThread model scriptId goto
                         in
-                        ( receivedEmail :: newEmails, action )
+                        ( receivedEmail :: newEmails, action, archivable )
 
                     Nothing ->
                         -- Base case: this is the last email in the thread
                         -- extension
-                        ( [ receivedEmail ], responseOptions )
+                        ( [ receivedEmail ], responseOptions, List.any ((==) Script.Archive) actions )
             )
-        |> Maybe.withDefault ( [], [] )
+        |> Maybe.withDefault ( [], [], False )
 
 
 
@@ -400,14 +421,36 @@ toolbar model =
         InboxOpen ->
             none
 
-        ThreadOpen _ ->
-            el [ Events.onClick ReturnToInbox, centerX, centerY, pointer ] (text "<-")
+        ThreadOpen { location } ->
+            let
+                thread =
+                    getThread location.inboxIndex model
+
+                archive canArchive =
+                    if canArchive then
+                        el [ Events.onClick ArchiveThread, centerX, centerY, pointer ] (text "↓")
+
+                    else
+                        el [ centerX, centerY, Font.color dimmedText ] (text "↓")
+            in
+            row [ spacing 10 ]
+                [ el [ Events.onClick ReturnToInbox, centerX, centerY, pointer ] (text "←")
+                , case thread.state of
+                    Unresponded { archivable } ->
+                        archive archivable
+
+                    _ ->
+                        archive False
+                ]
 
 
 inboxFull : Model -> Element Msg
 inboxFull model =
     column [ Background.color (rgb255 200 200 200), spacing 1, width fill, height fill ] <|
-        List.indexedMap (threadPreview model) model.inbox
+        (model.inbox
+            |> List.indexedMap (threadPreview model)
+            |> List.filterMap identity
+        )
 
 
 getScript : String -> Model -> Script.ThreadScript
@@ -428,11 +471,11 @@ getThread index model =
         |> Maybe.withDefault
             { scriptId = String.fromInt index
             , contents = []
-            , state = Responded
+            , state = Responded { archivable = False }
             }
 
 
-threadPreview : Model -> Int -> ActiveThread -> Element Msg
+threadPreview : Model -> Int -> ActiveThread -> Maybe (Element Msg)
 threadPreview model inboxIndex { scriptId, contents, state } =
     let
         ( weight, bgColor, important ) =
@@ -443,27 +486,36 @@ threadPreview model inboxIndex { scriptId, contents, state } =
                 Unresponded _ ->
                     ( Font.regular, rgb255 240 240 240, Assets.importantYes )
 
-                Responded ->
+                Responded _ ->
+                    ( Font.regular, rgb255 240 240 240, Assets.importantNo )
+
+                Archived ->
+                    -- Doesn't matter
                     ( Font.regular, rgb255 240 240 240, Assets.importantNo )
 
         location =
             { scriptId = scriptId, inboxIndex = inboxIndex }
     in
-    row
-        [ width fill, height threadHeight, Background.color bgColor ]
-        [ el [ width leftBuffer1, centerY ] (el [ centerX ] (Element.html Assets.starNo))
-        , el [ width leftBuffer2, centerY ] (el [ centerX ] (Element.html important))
-        , el
-            [ weight, width (px 250), height fill, Element.pointer, Events.onClick (OpenThread location) ]
-            (el [ centerY ] (text "People"))
-        , el
-            [ weight, width fill, height fill, Element.pointer, Events.onClick (OpenThread location) ]
-            (el [ centerY ] (getScript scriptId model |> .subject |> text))
-        , el
-            [ weight, width (px 150), height fill, Element.alignRight, Element.pointer, Events.onClick (OpenThread location) ]
-            (el [ centerY, Element.alignRight ] (text (String.fromInt (String.length scriptId) ++ " KB")))
-        , el [ width rightBuffer, height threadHeight, Element.alignRight ] Element.none
-        ]
+    if state == Archived then
+        Nothing
+
+    else
+        row
+            [ width fill, height threadHeight, Background.color bgColor ]
+            [ el [ width leftBuffer1, centerY ] (el [ centerX ] (Element.html Assets.starNo))
+            , el [ width leftBuffer2, centerY ] (el [ centerX ] (Element.html important))
+            , el
+                [ weight, width (px 250), height fill, Element.pointer, Events.onClick (OpenThread location) ]
+                (el [ centerY ] (text "People"))
+            , el
+                [ weight, width fill, height fill, Element.pointer, Events.onClick (OpenThread location) ]
+                (el [ centerY ] (getScript scriptId model |> .subject |> text))
+            , el
+                [ weight, width (px 150), height fill, Element.alignRight, Element.pointer, Events.onClick (OpenThread location) ]
+                (el [ centerY, Element.alignRight ] (text (String.fromInt (String.length scriptId) ++ " KB")))
+            , el [ width rightBuffer, height threadHeight, Element.alignRight ] Element.none
+            ]
+            |> Just
 
 
 threadFull : Model -> ThreadLocation -> Element Msg
