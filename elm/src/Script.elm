@@ -143,14 +143,27 @@ myScript =
       , first =
             { from = advisor
             , to = [ me ]
-            , contents = [ "First email" ]
+            , contents = [ "Naolin,",
+                """I had some questions about this last chapter you sent
+                me. I couldn't find the `Lemma 4.8' you referenced in your
+                proof of cut elimination, and it seems critical to making
+                the whole thing hang together. Actually, I'm not sure your
+                logic admits cut at all. Please get back to me to address
+                this urgent matter.""",
+                "Prof. Zhou"
+            ]
             }
       , actions =
-            [ { shortText = "Respond"
+            [ { shortText = "Haven't proved it yet"
               , email =
                     { from = me
                     , to = [ advisor ]
-                    , contents = [ "First response" ]
+                    , contents = [ "Prof. Zhou,",
+                      """Oh, thanks for catching that! Yeah, I hadn't
+                      proved that lemma yet. I was working on it but I got
+                      stuck on the commutative case. Maybe we could meet to
+                      talk it through."""
+                    ]
                     }
               , next = "b-2"
               }
@@ -161,7 +174,15 @@ myScript =
                   , { receivedEmail =
                         { from = advisor
                         , to = [ me ]
-                        , contents = [ "Second email" ]
+                        , contents = [ "Naolin,",
+                          """Don't waste your time. I found a
+                          counterexample to the cut elimination theorem
+                          (attached).
+                          The issue is with your side condition in the
+                          ELT-E rule. Remind me why you needed that side
+                          condition again?""",
+                          "Zhou"
+                        ]
                         }
                     , actions =
                         [ Types.Respond
@@ -207,19 +228,29 @@ myScript =
                   )
                 ]
       }
+
     , { id = "convo-c"
       , subject = "Jobs at my company"
       , first =
             { from = college_friend
             , to = [ me ]
-            , contents = [ "First email" ]
+            , contents = [ "Hey " ++ me.short ++ """! Can't wait to see you when
+            you get into town! 
+
+            Also, wanted to let you know Panoptico is hiring research
+            software engineers in machine learning. When are you graduating
+            again? It'd be so awesome if you came and worked here. Let me
+            know if you're interested and I'll talk to my boss.""" ]
             }
       , actions =
-            [ { shortText = "Respond"
+            [ { shortText = "Also looking forward"
               , email =
                     { from = me
                     , to = [ college_friend ]
-                    , contents = [ "First response" ]
+                    , contents = [ """I'm looking forward to it too boo.
+                    Haha, don't you know never to ask a grad student when
+                    they're finishing their thesis? But honestly I could
+                    bail if a good job comes along. Tell me more?""" ]
                     }
               , next = "c-2"
               }
