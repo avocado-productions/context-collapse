@@ -1,5 +1,5 @@
-module ScriptTypes exposing (Action(..), AddressbookEntry, Condition(..), Email, EmailResponse, EmailResponseGuard, ThreadScene, ThreadScript)
-
+module ScriptTypes exposing (..)
+import Dict exposing (Dict)
 
 type alias AddressbookEntry =
     { email : String
@@ -15,41 +15,29 @@ type alias Email =
     }
 
 
-type Action
-    = Enable String
-    | Set String
-    | Unset String
-
-
-type Condition
-    = IsSet String
-    | IsUnset String
-    -- | IsResponded String String
-
-
-type alias EmailResponseGuard =
-    { condition : Condition
-    }
-
-
 type alias EmailResponse =
-    { guards : List EmailResponseGuard
-    , shortText : String
+    { shortText : String
     , email : Email
-    , actions : List Action
+    , next : Maybe String
+    , spawn : List String
     }
+
+
+type Action
+    = Respond EmailResponse
+    | Immediate String
+    | Archive
 
 
 type alias ThreadScene =
-    { key : Maybe String
-    , guards : List Condition
-    , receivedEmail : Email
+    { receivedEmail : Email
     , actions : List Action
-    , availableResponses : List EmailResponse
     }
 
 
 type alias ThreadScript =
-    { subject : String
-    , scenes : List ThreadScene
+    { id : String
+    , subject : String
+    , start : String 
+    , scenes : Dict String ThreadScene 
     }

@@ -1,60 +1,50 @@
-module AppTypes exposing (ActiveThread, ActiveThreadState(..), GlobalContext, Model, Msg(..), ThreadLocation, ThreadScript)
+module AppTypes exposing (ActiveThread, ActiveThreadState(..), InboxState(..), Model, Msg(..), ThreadLocation)
 
-{- Stores types not needed for static authoring, but used for coordination between
-   the different parts of the running program. Msg is used in both update and view,
-   Model is used everywhere, etc.
--}
+{- Types used by the runtime. -}
 
 import ScriptTypes as Script
-import Set exposing (Set)
+
+
+type alias Model =
+    { blocked : Maybe { scriptId : String, next : String }
+    , scripts : List Script.ThreadScript
+    , inbox : List ActiveThread
+    , state : InboxState
+    }
 
 
 type Msg
-    = ReturnToInbox ThreadLocation
+    = ReturnToInbox
     | OpenThread ThreadLocation
-    | MakeDecision ThreadLocation Script.EmailResponse
-    | DoAction (Maybe ThreadLocation) Script.Action
-    | CheckForEnabled
-    | ToggleSuggestion ThreadLocation Int
+    | ToggleSuggestion Int
+    | SelectSuggestion
+    | ArchiveThread
 
 
-type alias GlobalContext =
-    { predicates : Set String
-    }
+type InboxState
+    = ThreadOpen { location : ThreadLocation }
+    | InboxOpen
 
-
-type alias ThreadScript =
-    { index : Int
-    , subject : String
-    , scenes : List Script.ThreadScene
-    , enabled : Set String -- Email keys that could potentially be shown next, or that have been shown
-    , used : Maybe (Set String) -- Just email keys that have been shown (Nothing if the thread hasn't started)
-    }
 
 type alias ThreadLocation =
-    { inboxIndex: Int
-    , scriptIndex: Int
-    }
-
-type alias Model =
-    { current : Maybe ThreadLocation
-    , you : Script.AddressbookEntry
-    , context : GlobalContext
-    , scripts : List ThreadScript
-    , inbox : List ActiveThread
+    { inboxIndex : Int
+    , scriptId : String
     }
 
 
 type alias ActiveThread =
-    { index : Int
-    , subject : String
-    , people : List String
+    { scriptId : String
     , contents : List Script.Email
     , state : ActiveThreadState
     }
 
 
 type ActiveThreadState
-    = Unread (List Script.EmailResponse) (Maybe Int)
-    | Unresponded (List Script.EmailResponse) (Maybe Int)
-    | Responded
+    = Responded { archivable : Bool }
+    | Archived
+    | Unread { archivable : Bool, responseOptions : List Script.EmailResponse }
+    | Unresponded
+        { archivable : Bool
+        , responseOptions : List Script.EmailResponse
+        , currentlySelectedOptionIndex : Maybe Int
+        }

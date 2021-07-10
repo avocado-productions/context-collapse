@@ -1,216 +1,453 @@
-module Script exposing (myScript, you)
+module Script exposing (me, myScript, starting)
 
 import Contact
+import Dict
 import ScriptTypes as Types
 
 
-you : Types.AddressbookEntry
-you =
-    naolin
-
-
-naolin : Types.AddressbookEntry
-naolin =
+me : Types.AddressbookEntry
+me =
     Contact.create
         |> Contact.email "naolin@panopticorp.co"
         |> Contact.short "Naolin"
         |> Contact.full "Naolin Dawson Vega"
 
 
-dawn : Types.AddressbookEntry
-dawn =
+dslist : Types.AddressbookEntry
+dslist =
     Contact.create
-        |> Contact.email "dawn@hometownpettsitters.com"
-        |> Contact.short "Dawn"
-        |> Contact.full "Dawn Hatton"
+        |> Contact.email "ds5.social@googlegroups.com"
+        |> Contact.short "DS 5"
+        |> Contact.full "The DS 5 Mailing List"
 
 
-cynthia : Types.AddressbookEntry
-cynthia =
+advisor : Types.AddressbookEntry
+advisor =
     Contact.create
-        |> Contact.email "cynthia@panopticorp.co"
-        |> Contact.short "Cynthia"
-        |> Contact.full "Cynthia Cui"
+        |> Contact.email "wzhou@uni.edu"
+        |> Contact.short "Wei Zhou"
+        |> Contact.full "Prof. Wei Zhou"
 
 
-felix : Types.AddressbookEntry
-felix =
+college_friend : Types.AddressbookEntry
+college_friend =
     Contact.create
-        |> Contact.email "felix@panopticorp.co"
-        |> Contact.short "Felix"
-        |> Contact.full "Felix Tanenbaum"
+        |> Contact.email "christine@upprcut.com"
+        |> Contact.short "C. Malcolm"
+        |> Contact.full "Christine Malcolm"
 
 
-anuj : Types.AddressbookEntry
-anuj =
+ds : Types.AddressbookEntry
+ds =
     Contact.create
-        |> Contact.email "anuj@panopticorp.co"
-        |> Contact.short "Anuj"
-        |> Contact.full "Anuj Narayanan"
+        |> Contact.email "info@downtownsouth.com"
+        |> Contact.short "Downtown"
+        |> Contact.full "Downtown South Bar & Grille"
 
 
-conf : Types.AddressbookEntry
-conf =
+apero : Types.AddressbookEntry
+apero =
     Contact.create
-        |> Contact.email "committee@irisconf.org"
-        |> Contact.short "IRIS"
-        |> Contact.full "IRISConf Organizers"
+        |> Contact.email "cheers@aperodining.com"
+        |> Contact.short "Apero"
+        |> Contact.full "Apero"
 
 
-david : Types.AddressbookEntry
-david =
-    Contact.create |> Contact.email "david@" |> Contact.short "David" |> Contact.full "David Sims, Ph.D."
-
-
-kendall : Types.AddressbookEntry
-kendall =
+drinkupapp : Types.AddressbookEntry
+drinkupapp =
     Contact.create
-        |> Contact.email "kgraham@incorp.com"
-        |> Contact.short "Kendall"
-        |> Contact.full "Kendall Graham"
+        |> Contact.email "email@drinkitallup.com"
+        |> Contact.short "Drink"
+        |> Contact.full "Drink it All Up!"
 
 
-figit : Types.AddressbookEntry
-figit =
-    Contact.create
-        |> Contact.email "statsbot@figit.com"
-        |> Contact.short "Figit"
-        |> Contact.full "Figit, Inc."
+starting =
+    [ "convo-ds", "convo-b", "convo-c" ]
 
 
 myScript : List Types.ThreadScript
 myScript =
-    [ { subject = "Welcome to IRIS"
+    [ { id = "convo-ds"
+      , subject = "Drinks tonight?"
+      , start = "a-zero"
       , scenes =
-            [ { key = Nothing
-              , actions = [ Types.Set "iris_welcome_recv" ]
-              , guards = []
-              , receivedEmail =
-                    { from = conf
-                    , to = [ conf ]
-                    , contents =
-                        [ "Dear Naolin,"
-                        , "Welcome to IRIS 2020! Below, you'll find key information about the next few  days."
-                        , "**Program:** The program is available online."
-                        , "**Registration:** Registration will be available Tuesday evening from 5-7pm and each morning,  8-8:30."
-                        , "**Meals:** Breakfast will be served 8-8:30, lunch 12-1 each day of the conference. Dinner  is on your own. 2"
+            Dict.fromList
+                [ ( "a-zero"
+                  , { receivedEmail =
+                        { from = dslist
+                        , to = [ me ]
+                        , contents = [ "Who wants to grab a drink at the DS tonight?" ]
+                        }
+                    , actions =
+                        [ Types.Respond
+                            { shortText = "Meet somewhere closer?"
+                            , email =
+                                { from = me
+                                , to = [ dslist ]
+                                , contents = [ """Could we meet somewhere closer to my
+                    apartment? There's a new bar called Apero that just
+                    opened up down the street.""" ]
+                                }
+                            , next = Just "a-one"
+                            , spawn = [ "apero-spam" ]
+                            }
+                        , Types.Respond
+                            { shortText = "I'm in"
+                            , email =
+                                { from = me
+                                , to = [ dslist ]
+                                , contents = [ "Save me a seat!" ]
+                                }
+                            , next = Just "a-one"
+                            , spawn = [ "ds-spam", "app-spam" ]
+                            }
                         ]
                     }
-              , availableResponses = []
-              }
-            ]
+                  )
+                , ( "a-one"
+                  , { receivedEmail =
+                        { from = dslist
+                        , to = [ me ]
+                        , contents = [ "Response from DS 5" ]
+                        }
+                    , actions =
+                        [ Types.Respond
+                            { shortText = "Go Left"
+                            , email =
+                                { from = me
+                                , to = [ dslist ]
+                                , contents = [ "Go Left" ]
+                                }
+                            , next = Just "a-two"
+                            , spawn = []
+                            }
+                        , Types.Respond
+                            { shortText = "Go Right"
+                            , email =
+                                { from = me
+                                , to = [ dslist ]
+                                , contents = [ "Go Right" ]
+                                }
+                            , next = Just "a-three"
+                            , spawn = []
+                            }
+                        ]
+                    }
+                  )
+                , ( "a-two"
+                  , { receivedEmail =
+                        { from = dslist
+                        , to = [ me ]
+                        , contents = [ "Good ending" ]
+                        }
+                    , actions =
+                        []
+                    }
+                  )
+                , ( "a-three"
+                  , { receivedEmail =
+                        { from = dslist
+                        , to = [ me ]
+                        , contents = [ "Bad ending starts" ]
+                        }
+                    , actions =
+                        [ Types.Immediate "a-four" ]
+                    }
+                  )
+                , ( "a-four"
+                  , { receivedEmail =
+                        { from = dslist
+                        , to = [ me ]
+                        , contents = [ "Bad ending continues" ]
+                        }
+                    , actions =
+                        [ Types.Immediate "a-five" ]
+                    }
+                  )
+                , ( "a-five"
+                  , { receivedEmail =
+                        { from = dslist
+                        , to = [ me ]
+                        , contents = [ "Bad ending ends" ]
+                        }
+                    , actions =
+                        []
+                    }
+                  )
+                ]
       }
-    , { subject = "Anyone in town yet?"
+    , { id = "convo-b"
+      , subject = "Your thesis progress"
+      , start = "b-1"
       , scenes =
-            [ { key = Nothing
-              , actions = []
-              , guards = [ Types.IsSet "iris_welcome_recv" ]
-              , receivedEmail =
-                    { from = anuj
-                    , to = [ naolin, felix, cynthia ]
-                    , contents =
-                        [ "My flight just landed. It'll probably be another 30 til I get to the hotel but then I was thinking of hitting the bar and finding a spot for dinner. Anyone else here and want to join?"
-                        , "— Anuj"
-                        ]
-                    }
-              , availableResponses =
-                    [ { shortText = "Ugh, Felix."
-                      , guards = []
-                      , actions =
-                            [ Types.Enable "Anuj is sorry", Types.Enable "Felix replies", Types.Set "hasPlans" ]
-                      , email =
-                            { from = you
-                            , to = [ anuj ]
-                            , contents = [ "Anuj, you know Felix and I don't really get along" ]
-                            }
-                      }
-                    , { shortText = "No thanks."
-                      , guards = []
-                      , actions = [ Types.Set "hasPlans", Types.Enable "Felix replies" ]
-                      , email =
-                            { from = you
-                            , to = [ anuj, felix, cynthia ]
-                            , contents = [ "Sorry, I've got to work on the slides for my talk. Have fun!" ]
-                            }
-                      }
-                    , { shortText = "Sounds great."
-                      , guards = []
-                      , actions =
-                            [ Types.Set "hasPlans"
-                            , Types.Enable "Anuj is happy"
-                            , Types.Enable "Felix replies"
+            Dict.fromList
+                [ ( "b-1"
+                  , { receivedEmail =
+                        { from = advisor
+                        , to = [ me ]
+                        , contents =
+                            [ "Naolin,"
+                            , """I had some questions about this last chapter you sent
+                me. I couldn't find the `Lemma 4.8' you referenced in your
+                proof of cut elimination, and it seems critical to making
+                the whole thing hang together. Actually, I'm not sure your
+                logic admits cut at all. Please get back to me to address
+                this urgent matter."""
+                            , "Prof. Zhou"
                             ]
-                      , email =
-                            { from = you
-                            , to = [ anuj, felix, cynthia ]
-                            , contents = [ "Sounds great! I can't wait to see everyone." ]
+                        }
+                    , actions =
+                        [ Types.Respond
+                            { shortText = "Haven't proved it yet"
+                            , email =
+                                { from = me
+                                , to = [ advisor ]
+                                , contents =
+                                    [ "Prof. Zhou,"
+                                    , """Oh, thanks for catching that! Yeah, I hadn't
+                      proved that lemma yet. I was working on it but I got
+                      stuck on the commutative case. Maybe we could meet to
+                      talk it through."""
+                                    ]
+                                }
+                            , next = Just "b-2"
+                            , spawn = []
                             }
-                      }
-                    ]
-              }
-            , { key = Just "Felix replies"
-              , actions = [ Types.Set "felixReplied" ]
-              , guards = []
-              , receivedEmail =
-                    { from = felix
-                    , to = [ anuj ]
-                    , contents = [ "Sounds great! I'll be there. Brought cards for after.", "- Felix" ]
-                    }
-              , availableResponses = []
-              }
-            , { key = Just "Anuj is sorry"
-              , actions = []
-              , guards = [ Types.IsSet "felixReplied" ]
-              , receivedEmail =
-                    { from = anuj
-                    , to = [ naolin ]
-                    , contents = [ "Oh crap. I still forget. I'm really sorry! —A" ]
-                    }
-              , availableResponses =
-                    [ { shortText = "Okay..."
-                      , guards = []
-                      , actions = []
-                      , email = { from = you, to = [ anuj ], contents = [ "It's okay." ] }
-                      }
-                    ]
-              }
-            , { key = Just "Anuj is happy"
-              , actions = []
-              , guards = [ Types.IsSet "felixReplied" ]
-              , receivedEmail = { from = anuj, to = [ naolin ], contents = [ "Hooray! See you soon.", "—A" ] }
-              , availableResponses =
-                    [ { shortText = "Actually..."
-                      , guards = [ { condition = Types.IsSet "conflictWithDrinks" } ]
-                      , actions = []
-                      , email =
-                            { from = you
-                            , to = [ anuj ]
-                            , contents = [ "Sorry, something came up. I need to back out. Have fun!" ]
-                            }
-                      }
-                    ]
-              }
-            ]
-      }
-    , { subject = "Evening Visit"
-      , scenes =
-            [ { key = Nothing
-              , actions = []
-              , guards = [ Types.IsSet "iris_welcome_recv", Types.IsSet "hasPlans" ]
-              , receivedEmail =
-                    { from = dawn
-                    , to = [ naolin ]
-                    , contents =
-                        [ "Hi Naolin!"
-                        , "Tunafish did SO WELL with her meds tonight. She greeted me right when I came in the door and ate her dinner, then joined me on the couch for some cuddles before her shot."
-                        , "[[image: tunafish1.jpg]]"
-                        , "[[image: tunafish2.jpg]]"
-                        , "Have a great evening!"
-                        , "— Dawn"
                         ]
                     }
-              , availableResponses = []
-              }
-            ]
+                  )
+                , ( "b-2"
+                  , { receivedEmail =
+                        { from = advisor
+                        , to = [ me ]
+                        , contents =
+                            [ "Naolin,"
+                            , """Don't waste your time. I found a
+                          counterexample to the cut elimination theorem
+                          (attached).
+                          The issue is with your side condition in the
+                          ELT-E rule. Remind me why you needed that side
+                          condition again?"""
+                            , "Zhou"
+                            ]
+                        }
+                    , actions =
+                        [ Types.Respond
+                            { shortText = "Respond"
+                            , email =
+                                { from = me
+                                , to = [ advisor ]
+                                , contents = [ "Second response" ]
+                                }
+                            , next = Just "b-3"
+                            , spawn = []
+                            }
+                        ]
+                    }
+                  )
+                , ( "b-3"
+                  , { receivedEmail =
+                        { from = advisor
+                        , to = [ me ]
+                        , contents = [ "Third email" ]
+                        }
+                    , actions =
+                        [ Types.Respond
+                            { shortText = "Respond"
+                            , email =
+                                { from = me
+                                , to = [ advisor ]
+                                , contents = [ "Third response" ]
+                                }
+                            , next = Just "b-4"
+                            , spawn = []
+                            }
+                        ]
+                    }
+                  )
+                , ( "b-4"
+                  , { receivedEmail =
+                        { from = advisor
+                        , to = [ me ]
+                        , contents = [ "Fourth email" ]
+                        }
+                    , actions =
+                        []
+                    }
+                  )
+                ]
+      }
+    , { id = "convo-c"
+      , subject = "Jobs at my company"
+      , start = "c-1"
+      , scenes =
+            Dict.fromList
+                [ ( "c-1"
+                  , { receivedEmail =
+                        { from = college_friend
+                        , to = [ me ]
+                        , contents = [ "Hey " ++ me.short ++ """! Can't wait to see you when
+            you get into town! 
+
+            Also, wanted to let you know Panoptico is hiring research
+            software engineers in machine learning. When are you graduating
+            again? It'd be so awesome if you came and worked here. Let me
+            know if you're interested and I'll talk to my boss.""" ]
+                        }
+                    , actions =
+                        [ Types.Respond
+                            { shortText = "Also looking forward"
+                            , email =
+                                { from = me
+                                , to = [ college_friend ]
+                                , contents = [ """I'm looking forward to it too boo.
+                    Haha, don't you know never to ask a grad student when
+                    they're finishing their thesis? But honestly I could
+                    bail if a good job comes along. Tell me more?""" ]
+                                }
+                            , next = Just "c-2"
+                            , spawn = []
+                            }
+                        ]
+                    }
+                  )
+                , ( "c-2"
+                  , { receivedEmail =
+                        { from = college_friend
+                        , to = [ me ]
+                        , contents = [ "Second email" ]
+                        }
+                    , actions =
+                        [ Types.Respond
+                            { shortText = "Respond"
+                            , email =
+                                { from = me
+                                , to = [ college_friend ]
+                                , contents = [ "Second response" ]
+                                }
+                            , next = Just "c-3"
+                            , spawn = []
+                            }
+                        ]
+                    }
+                  )
+                , ( "c-3"
+                  , { receivedEmail =
+                        { from = college_friend
+                        , to = [ me ]
+                        , contents = [ "Third email" ]
+                        }
+                    , actions =
+                        [ Types.Respond
+                            { shortText = "Respond"
+                            , email =
+                                { from = me
+                                , to = [ college_friend ]
+                                , contents = [ "Third response" ]
+                                }
+                            , next = Just "c-4"
+                            , spawn = []
+                            }
+                        ]
+                    }
+                  )
+                , ( "c-4"
+                  , { receivedEmail =
+                        { from = college_friend
+                        , to = [ me ]
+                        , contents = [ "Fourth email" ]
+                        }
+                    , actions =
+                        []
+                    }
+                  )
+                ]
+      }
+    , { id = "ds-spam"
+      , subject = "Downtown South is open!"
+      , start = "start"
+      , scenes =
+            Dict.fromList
+                [ ( "start"
+                  , { receivedEmail =
+                        { from = ds
+                        , to = [ me ]
+                        , contents =
+                            [ "Downtown South is open!"
+                            , """After extenisve repairs, the Downtown South Bar & Grille
+          is back open for business. In honor of our flood damage,
+          we've got a disaster-themed menu for you all tonight!"""
+                            , """Flood the fires of your appetite with a nice cold drink and let
+          Wet Willie do the cooking: enjoy Drenched Nachos, (Advancing)
+          Surf and (Retreating) Turf, or try out our brand-new patented
+          Storm Sturgeon Salad."""
+                            , """"""
+                            , """Hurry in before the next full moon floods us again!"""
+                            , """— Wet Willie from the Grille"""
+                            ]
+                        }
+                    , actions = [ Types.Archive ]
+                    }
+                  )
+                ]
+      }
+    , { id = "apero-spam"
+      , subject = "Apero Grand Opening: Next Thursday"
+      , start = "start"
+      , scenes =
+            Dict.fromList
+                [ ( "start"
+                  , { receivedEmail =
+                        { from = apero
+                        , to = [ me ]
+                        , contents =
+                            [ """Dear loyal early customer!"""
+                            , """Here at Apero, we're been excited by the early response 
+                we've gotten during our "soft-open" period this month. We wanted to
+                let all of our first fans know that our official Grand Opening party
+                is happening soon: next Thursday we'll not just be open, but we'll
+                be open with bells on!"""
+                            , """Come on down in your fanciest tuxedo (or your nicest t-shirt and
+                ripped jeans) for
+                drink specials, 3-for-1 appetizers, and a grand old time at our grand
+                opening. Or come on by sooner: we're exited to see you anytime, and
+                you've clearly figured out that we're here without a grand opening!"""
+                            , """"""
+                            , """Your favorite terribly-kept neighborhood boozy secret,"""
+                            , """Apero Staff"""
+                            ]
+                        }
+                    , actions = [ Types.Archive ]
+                    }
+                  )
+                ]
+      }
+    , { id = "app-spam"
+      , subject = "Thanks for downloading Drink.up"
+      , start = "start"
+      , scenes =
+            Dict.fromList
+                [ ( "start"
+                  , { receivedEmail =
+                        { from = drinkupapp
+                        , to = [ me ]
+                        , contents =
+                            [ """Welcome to the thirstiest and tastiest family you'll
+                ever be a part of... unless you've got a really cool family, we guess!"""
+                            , """Remember to use the Drink.up app to check in whenever you have a 
+                new beer, some fancy soda... or even when you grab some tap water and
+                chug it down!"""
+                            , """For every liter of beverage you track on the Drink.up app, you'll
+                get points towards free food and travel. Why? Because We've Got Venture
+                Capitol Money, That's Why™"""
+                            , """"""
+                            , """Your friends at Team Drink.up"""
+                            , """https://drink.up/"""
+                            ]
+                        }
+                    , actions = [ Types.Archive ]
+                    }
+                  )
+                ]
       }
     ]
