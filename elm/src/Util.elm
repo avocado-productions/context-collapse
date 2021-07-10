@@ -1,21 +1,10 @@
-module Util exposing (addIndex, findSomething)
+module Util exposing (choose)
 
 
-addIndex : List a -> List ( Int, a )
-addIndex =
-    List.indexedMap (\i x -> ( i, x ))
+choose : Bool -> c -> c -> c
+choose b x y =
+    if b then
+        x
 
-
-findSomething : (a -> Maybe b) -> List a -> Maybe b
-findSomething f items =
-    case items of
-        [] ->
-            Nothing
-
-        x :: xs ->
-            case f x of
-                Nothing ->
-                    findSomething f xs
-
-                Just ans ->
-                    Just ans
+    else
+        y

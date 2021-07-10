@@ -2,6 +2,7 @@ module View exposing (view)
 
 import AppTypes as App exposing (Msg(..))
 import Assets
+import Browser exposing (Document)
 import Color
 import Dict
 import Element exposing (..)
@@ -10,41 +11,67 @@ import Element.Border as Border
 import Element.Events as Events
 import Element.Font as Font
 import Element.Region as Region
-import Html exposing (Html)
+import Html
 import Html.Attributes
 import List.Extra as List
 import ScriptTypes as Script
 import UI
+import Util
 
 
-view : App.Model -> Html App.Msg
+view : App.Model -> Document App.Msg
 view model =
-    Element.layout [ height fill, width fill ] <|
-        row [ width fill, height fill, spacing 0 ] <|
-            [ -- Left Bar
-              row [ paddingEach { top = UI.externalChromePadding, left = UI.externalChromePadding, right = 0, bottom = 0 }, width <| px UI.leftMenuWidth, height fill ]
-                [ image [ width <| px UI.logoWidth, height <| px UI.logoHeight, alignTop ] { src = "assets/avocomm-logo.png", description = "AvoComm webmail client logo" }
-                , el [ width fill, height <| px UI.logoHeight, alignTop, Font.size 54, UI.logoFont ] (el [ alignBottom ] <| text "voComm")
-                ]
-            , -- Main panel
-              column [ height fill, width fill ] <|
-                [ el [ width fill, height UI.threadHeight ] <|
-                    none
-                , el [ width UI.threadHeight, height UI.threadHeight ] <|
-                    toolbar model
-                , el [ width fill, height (px 10) ] <|
-                    none
-                , el [ width fill, height (px 1), Background.color Color.uiGray ] <|
-                    none
-                , el [ width fill, height fill, scrollbarY ] <|
-                    case model.state of
-                        App.InboxOpen ->
-                            inboxFull model
+    { title = 
+        case model.state of
+            App.InboxOpen ->
+                let
+                    unread = 
+                        model.inbox
+                            |> List.filterMap (\email ->
+                                case email.state of
+                                    App.Unread _ -> Just ()
+                                    _ -> Nothing )
+                            |> List.length
+                in
+                if unread == 0 then
+                    "Inbox - " ++ model.me.email ++ " - AvoComm"
+                else 
+                    "Inbox (" ++ String.fromInt (unread) ++ ") - " ++ model.me.email ++ " - AvoComm"
+            App.ThreadOpen { location } ->
+                let
+                    script = getScript  location.scriptId model
+                in
+                script.subject ++ " - " ++ model.me.email ++ " - AvoComm"
 
-                        App.ThreadOpen { location } ->
-                            threadFull model location
+    , body =
+        [ Element.layout [ height fill, width fill ] <|
+            row [ width fill, height fill, spacing 0 ] <|
+                [ -- Left Bar
+                  row [ paddingEach { top = UI.externalChromePadding, left = UI.externalChromePadding, right = 0, bottom = 0 }, width <| px UI.leftMenuWidth, height fill ]
+                    [ image [ width <| px UI.logoWidth, height <| px UI.logoHeight, alignTop ] { src = "/assets/avocomm-logo.png", description = "AvoComm webmail client logo" }
+                    , el [ width fill, height <| px UI.logoHeight, alignTop, Font.size 54, UI.logoFont ] (el [ alignBottom ] <| text "voComm")
+                    ]
+                , -- Main panel
+                  column [ height fill, width fill ] <|
+                    [ el [ width fill, height UI.threadHeight ] <|
+                        none
+                    , el [ width UI.threadHeight, height UI.threadHeight ] <|
+                        toolbar model
+                    , el [ width fill, height (px 10) ] <|
+                        none
+                    , el [ width fill, height (px 1), Background.color Color.uiGray ] <|
+                        none
+                    , el [ width fill, height fill, scrollbarY ] <|
+                        case model.state of
+                            App.InboxOpen ->
+                                inboxFull model
+
+                            App.ThreadOpen { location } ->
+                                threadFull model location
+                    ]
                 ]
-            ]
+        ]
+    }
 
 
 toolbarButton : String -> String -> Maybe msg -> Element msg
@@ -69,7 +96,7 @@ toolbar model =
     case model.state of
         App.InboxOpen ->
             row []
-                [ toolbarButton "⟳" "Refresh" (Just App.ReturnToInbox) ]
+                [ toolbarButton "⟳" "Refresh" (Just App.DoNothing) ]
 
         App.ThreadOpen { location } ->
             let
@@ -84,7 +111,7 @@ toolbar model =
                         toolbarButton "↓" "Archive" Nothing
             in
             row []
-                [ toolbarButton "←" "Return to Inbox" (Just App.ReturnToInbox)
+                [ toolbarButton "←" "Return to Inbox" (Just (App.NavBack))
                 , case thread.state of
                     App.Unresponded { archivable } ->
                         archive archivable
@@ -138,13 +165,24 @@ getThread index model =
 threadPreview : App.Model -> Int -> App.ActiveThread -> Maybe (Element App.Msg)
 threadPreview model inboxIndex { scriptId, contents, state } =
     let
+        hasRespondAction =
+            List.any
+                (\action ->
+                    case action of
+                        Script.Respond _ ->
+                            True
+
+                        _ ->
+                            False
+                )
+
         ( weight, bgColor, important ) =
             case state of
-                App.Unread _ ->
-                    ( Font.bold, Color.white, Assets.importantYes )
+                App.Unread { responseOptions } ->
+                    ( Font.bold, Color.white, Util.choose (List.length responseOptions > 0) Assets.importantYes Assets.importantNo )
 
-                App.Unresponded _ ->
-                    ( Font.regular, Color.uiLightGray, Assets.importantYes )
+                App.Unresponded { responseOptions } ->
+                    ( Font.regular, Color.uiLightGray, Util.choose (List.length responseOptions > 0) Assets.importantYes Assets.importantNo )
 
                 App.Responded _ ->
                     ( Font.regular, Color.uiLightGray, Assets.importantNo )
@@ -164,7 +202,7 @@ threadPreview model inboxIndex { scriptId, contents, state } =
             [ width fill, height UI.threadHeight, Background.color bgColor ]
             [ el [ width UI.leftBuffer1, centerY ] (el [ centerX ] (Element.html Assets.starNo))
             , el [ width UI.leftBuffer2, centerY ] (el [ centerX ] (Element.html important))
-            , row [ width fill, height fill, pointer, Events.onClick (App.OpenThread location), UI.contentFont ]
+            , row [ width fill, height fill, pointer, Events.onClick (App.NavPushUrl ("/k/inbox/" ++ location.scriptId)), UI.contentFont ]
                 [ el
                     [ weight, width (px 250), height fill ]
                     (el [ centerY ] (text "People"))

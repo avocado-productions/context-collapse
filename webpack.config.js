@@ -11,6 +11,11 @@ module.exports = {
   devServer: {
     contentBase: __dirname,
     port: 8888,
+    historyApiFallback: {
+      rewrites: [
+        { from: /^\/k/, to: '/' },
+      ],
+    },
   },
   module: {
     rules: [
@@ -21,16 +26,11 @@ module.exports = {
       {
         test: /\.elm$/,
         exclude: [/elm-stuff/, /node_modules/],
-        loaders: [
-          {
-            loader: 'elm-webpack-loader',
-            options: {
-              cwd: __dirname,
-              debug: true,
-            },
-          },
-        ],
-      },
+        use: {
+          loader: 'elm-webpack-loader',
+          options: {}
+        }
+      }
     ],
   },
 };

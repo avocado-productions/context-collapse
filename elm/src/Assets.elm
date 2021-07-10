@@ -1,6 +1,5 @@
-module Assets exposing (idCircle, importantNo, importantYes, logo, starNo)
+module Assets exposing (idCircle, importantNo, importantYes, starNo)
 
-import Html exposing (Html)
 import Html.Attributes
 import Svg exposing (Svg)
 import Svg.Attributes
@@ -51,6 +50,3 @@ starNo =
         ]
 
 
-logo : Html msg
-logo =
-    Html.img [ Html.Attributes.src "assets/avocomm-logo.png" ] []

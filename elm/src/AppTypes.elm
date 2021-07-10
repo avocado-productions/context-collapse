@@ -3,6 +3,9 @@ module AppTypes exposing (ActiveThread, ActiveThreadState(..), InboxState(..), M
 {- Types used by the runtime. -}
 
 import ScriptTypes as Script
+import Browser.Navigation
+import Browser
+import Url exposing (Url)
 
 
 type alias Model =
@@ -10,15 +13,22 @@ type alias Model =
     , scripts : List Script.ThreadScript
     , inbox : List ActiveThread
     , state : InboxState
+    , navKey : Browser.Navigation.Key
+    , me : Script.AddressbookEntry
     }
 
 
 type Msg
-    = ReturnToInbox
+    = DoNothing
+    | NavPushUrl String
+    | NavBack
+    | OpenInbox
     | OpenThread ThreadLocation
     | ToggleSuggestion Int
     | SelectSuggestion
     | ArchiveThread
+    | OnUrlChange Url
+    | OnUrlRequest Browser.UrlRequest
 
 
 type InboxState

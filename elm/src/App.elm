@@ -2,21 +2,26 @@ module App exposing (main)
 
 import AppTypes as App
 import Browser
+import Browser.Navigation as Nav exposing (Key)
 import Cmd.Extra as Cmd
 import Dict
 import List.Extra as List
 import Script as S
 import ScriptTypes as Script
+import Url exposing (Url)
 import View
+import Url.Parser exposing (Parser, s, (</>))
 
 
 main : Program () App.Model App.Msg
 main =
-    Browser.element
+    Browser.application
         { init = init
         , view = View.view
         , update = update
-        , subscriptions = subscriptions
+        , subscriptions = \_ -> Sub.none
+        , onUrlRequest = App.OnUrlRequest
+        , onUrlChange = App.OnUrlChange
         }
 
 
@@ -24,8 +29,8 @@ main =
 -- MODEL
 
 
-init : () -> ( App.Model, Cmd App.Msg )
-init () =
+init : () -> Url -> Key -> ( App.Model, Cmd App.Msg )
+init () url key =
     List.foldr
         (\scriptId model ->
             let
@@ -48,9 +53,11 @@ init () =
         , blocked = Nothing
         , inbox = []
         , scripts = S.myScript
+        , navKey = key
+        , me = S.me
         }
         S.starting
-        |> Cmd.pure
+        |> Cmd.with (Nav.pushUrl key "/k/inbox/")
 
 
 getScript : String -> App.Model -> Script.ThreadScript
@@ -81,14 +88,23 @@ getThread index model =
 update : App.Msg -> App.Model -> ( App.Model, Cmd App.Msg )
 update msg model =
     case msg of
-        App.ReturnToInbox ->
-            { model | state = App.InboxOpen }
-                |> Cmd.pure
+        App.DoNothing ->
+            model |> Cmd.pure
+
+        App.NavBack ->
+            model |> Cmd.with  (Nav.back model.navKey 1)
+
+        App.NavPushUrl url ->
+            model |> Cmd.with  (Nav.pushUrl model.navKey url)
+
+        App.OpenInbox ->
+            { model | state = App.InboxOpen } |> Cmd.pure
+
 
         App.OpenThread location ->
             let
                 inboxWithRead =
-                    -- Mark current thread as App.Unread
+                    -- Mark current thread as Unread
                     List.map
                         (\thread ->
                             if thread.scriptId /= location.scriptId then
@@ -164,7 +180,7 @@ update msg model =
                         , state = App.InboxOpen
                         , blocked = Nothing -- inbox has been advanced
                     }
-                        |> Cmd.pure
+                        |> Cmd.with (Nav.pushUrl model.navKey "/k/inbox/")
 
                 _ ->
                     -- Should be impossible!
@@ -186,27 +202,6 @@ update msg model =
                                     currentlySelectedOptionIndex
                                         |> Maybe.andThen (\index -> List.getAt index responseOptions)
 
-                                {- }
-                                   case currentlySelectedOptionIndex of
-                                       Nothing ->
-                                           -- Should be impossible!
-                                           ( thread, Nothing )
-
-                                       Just index ->
-                                           case List.getAt index responseOptions of
-                                               Nothing ->
-                                                   -- Should be impossible!
-                                                   ( thread, Nothing )
-
-                                               Just r -> r
-                                                   ( { thread
-                                                       | contents = thread.contents ++ [ response.email ]
-                                                       , state = App.Responded { archivable = False }
-                                                     }
-                                                   , response.next
-                                                   , r
-                                                   )
-                                -}
                                 _ ->
                                     -- Should be impossible!
                                     Nothing
@@ -256,11 +251,52 @@ update msg model =
                         , blocked = response.next |> Maybe.map (\blockedNextId -> { scriptId = location.scriptId, next = blockedNextId })
                         , state = App.InboxOpen
                     }
-                        |> Cmd.pure
+                        |> Cmd.with (Nav.pushUrl model.navKey "/k/inbox/")
 
                 _ ->
                     -- Should be impossible!
                     model |> Cmd.pure
+
+        App.OnUrlChange url ->
+            if url.path == currentUrl model then 
+                model |> Cmd.pure
+            else
+                case Url.Parser.parse (parseUrl model) url of
+                    Nothing -> 
+                                        model |> Cmd.with (Cmd.perform App.OpenInbox)
+                    Just route ->
+                        model |> Cmd.with (Cmd.perform route)
+
+        App.OnUrlRequest url ->
+            let
+                _ =
+                    Debug.log "urlRequest" url
+            in
+            model |> Cmd.pure
+
+
+currentUrl : App.Model -> String
+currentUrl model = 
+    case model.state of
+        App.InboxOpen -> "/k/inbox/"
+        App.ThreadOpen { location } -> 
+            "/k/inbox/" ++ location.scriptId 
+
+parseUrl : App.Model -> Parser (App.Msg -> a) a
+parseUrl model = 
+    let
+        parseThreadId id = 
+            List.indexedMap (\inboxIndex { scriptId } ->
+                if id == scriptId then Just <| App.OpenThread { scriptId = scriptId, inboxIndex = inboxIndex }
+                else Nothing) model.inbox 
+                |> List.filterMap identity
+                |> List.head
+
+    in
+    Url.Parser.oneOf [
+         (s "k" </> s "inbox" </> Url.Parser.map App.OpenInbox Url.Parser.top)
+         , (s "k") </> s "inbox" </> (Url.Parser.custom  "THREAD" parseThreadId)
+    ]
 
 
 advanceInbox : App.Model -> List App.ActiveThread -> List App.ActiveThread
@@ -288,7 +324,7 @@ advanceInbox model inbox =
 
 advanceThread : App.Model -> Script.ThreadScript -> String -> ( List Script.Email, List Script.EmailResponse, Bool )
 advanceThread model script next =
-    Dict.get (Debug.log "next" next) script.scenes
+    Dict.get next script.scenes
         |> Maybe.map
             (\{ receivedEmail, actions } ->
                 let
@@ -332,16 +368,7 @@ advanceThread model script next =
                     Nothing ->
                         -- Base case: this is the last email in the thread
                         -- extension
-                        ( [ receivedEmail ], responseOptions, Debug.log "archivable" <| List.any ((==) Script.Archive) (Debug.log "Actions" actions) )
+                        ( [ receivedEmail ], responseOptions, List.any ((==) Script.Archive) actions )
             )
         |> Maybe.withDefault ( [], [], False )
 
-
-
--- View
--- Subscriptions
-
-
-subscriptions : App.Model -> Sub App.Msg
-subscriptions _ =
-    Sub.none
