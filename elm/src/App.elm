@@ -70,19 +70,30 @@ type ActiveThreadState
 
 init : () -> ( Model, Cmd Msg )
 init () =
-    { state = InboxOpen
-    , blocked = Nothing
-    , inbox =
-        S.myScript
-            |> List.map
-                (\{ id, first, actions } ->
-                    { scriptId = id
-                    , contents = [ first ]
-                    , state = Unread { archivable = False, responseOptions = actions }
+    List.foldr
+        (\scriptId model ->
+            let
+                script =
+                    getScript scriptId model
+
+                ( contents, responseOptions, archivable ) =
+                    advanceThread model script script.start
+            in
+            { model
+                | inbox =
+                    { scriptId = scriptId
+                    , contents = contents
+                    , state = Unread { archivable = archivable, responseOptions = responseOptions }
                     }
-                )
-    , scripts = S.myScript
-    }
+                        :: model.inbox
+            }
+        )
+        { state = InboxOpen
+        , blocked = Nothing
+        , inbox = []
+        , scripts = S.myScript
+        }
+        S.starting
         |> Cmd.pure
 
 
@@ -197,42 +208,83 @@ update msg model =
                         thread =
                             getThread location.inboxIndex model
 
-                        ( threadWithResponse, blockedNext ) =
+                        response : Script.EmailResponse
+                        response =
                             -- Append the selected email to the end of its thread,
                             -- change that thread's state to Responded
-                            case thread.state of
+                            (case thread.state of
                                 Unresponded { responseOptions, currentlySelectedOptionIndex } ->
-                                    case currentlySelectedOptionIndex of
-                                        Nothing ->
-                                            -- Should be impossible!
-                                            ( thread, Nothing )
+                                    currentlySelectedOptionIndex
+                                        |> Maybe.andThen (\index -> List.getAt index responseOptions)
 
-                                        Just index ->
-                                            case List.getAt index responseOptions of
-                                                Nothing ->
-                                                    -- Should be impossible!
-                                                    ( thread, Nothing )
+                                {- }
+                                   case currentlySelectedOptionIndex of
+                                       Nothing ->
+                                           -- Should be impossible!
+                                           ( thread, Nothing )
 
-                                                Just response ->
-                                                    ( { thread
-                                                        | contents = thread.contents ++ [ response.email ]
-                                                        , state = Responded { archivable = False }
-                                                      }
-                                                    , Just response.next
-                                                    )
+                                       Just index ->
+                                           case List.getAt index responseOptions of
+                                               Nothing ->
+                                                   -- Should be impossible!
+                                                   ( thread, Nothing )
 
+                                               Just r -> r
+                                                   ( { thread
+                                                       | contents = thread.contents ++ [ response.email ]
+                                                       , state = Responded { archivable = False }
+                                                     }
+                                                   , response.next
+                                                   , r
+                                                   )
+                                -}
                                 _ ->
                                     -- Should be impossible!
-                                    ( thread, Nothing )
+                                    Nothing
+                            )
+                                |> Maybe.withDefault
+                                    -- Should be impossible to hit the default
+                                    { shortText = ""
+                                    , email = { from = S.me, to = [], contents = [] }
+                                    , next = Nothing
+                                    , spawn = []
+                                    }
+
+                        newThreads =
+                            List.map
+                                (\spawnId ->
+                                    let
+                                        script =
+                                            getScript spawnId model
+
+                                        ( contents, responseOptions, archivable ) =
+                                            advanceThread model script script.start
+                                    in
+                                    { scriptId = spawnId
+                                    , contents = contents
+                                    , state =
+                                        Unread
+                                            { archivable = archivable
+                                            , responseOptions = responseOptions
+                                            }
+                                    }
+                                )
+                                response.spawn
                     in
                     { model
                         | inbox =
-                            model.inbox
-                                -- Replace the appropriate thread with the
-                                -- updated thread
-                                |> List.setAt location.inboxIndex threadWithResponse
-                                |> advanceInbox model
-                        , blocked = blockedNext |> Maybe.map (\blockedNextId -> { scriptId = location.scriptId, next = blockedNextId })
+                            newThreads
+                                ++ (model.inbox
+                                        -- Replace the appropriate thread with the
+                                        -- updated thread
+                                        |> List.setAt location.inboxIndex
+                                            { thread
+                                                | contents = thread.contents ++ [ response.email ]
+                                                , state = Responded { archivable = False }
+                                            }
+                                        |> advanceInbox model
+                                   )
+                        , blocked = response.next |> Maybe.map (\blockedNextId -> { scriptId = location.scriptId, next = blockedNextId })
                         , state = InboxOpen
                     }
                         |> Cmd.pure
@@ -251,12 +303,7 @@ advanceInbox model inbox =
         Just { scriptId, next } ->
             case List.splitWhen (\thread -> thread.scriptId == scriptId) inbox of
                 Just ( prefix, thread :: postfix ) ->
-                    case advanceThread model scriptId next of
-                        ( [], _, _ ) ->
-                            -- Nothing matching `next` was found in the script for this thread
-                            -- This could be made impossible, but for now just represents a finished script
-                            inbox
-
+                    case advanceThread model (getScript scriptId model) next of
                         ( newEmails, responseOptions, archivable ) ->
                             { thread
                                 | contents = thread.contents ++ newEmails
@@ -270,13 +317,9 @@ advanceInbox model inbox =
                     inbox
 
 
-advanceThread : Model -> String -> String -> ( List Script.Email, List Script.EmailResponse, Bool )
-advanceThread model scriptId next =
-    let
-        script =
-            getScript scriptId model
-    in
-    Dict.get next script.scenes
+advanceThread : Model -> Script.ThreadScript -> String -> ( List Script.Email, List Script.EmailResponse, Bool )
+advanceThread model script next =
+    Dict.get (Debug.log "next" next) script.scenes
         |> Maybe.map
             (\{ receivedEmail, actions } ->
                 let
@@ -313,14 +356,14 @@ advanceThread model scriptId next =
                         -- the Immediate action.
                         let
                             ( newEmails, action, archivable ) =
-                                advanceThread model scriptId goto
+                                advanceThread model script goto
                         in
                         ( receivedEmail :: newEmails, action, archivable )
 
                     Nothing ->
                         -- Base case: this is the last email in the thread
                         -- extension
-                        ( [ receivedEmail ], responseOptions, List.any ((==) Script.Archive) actions )
+                        ( [ receivedEmail ], responseOptions, Debug.log "archivable" <| List.any ((==) Script.Archive) (Debug.log "Actions" actions) )
             )
         |> Maybe.withDefault ( [], [], False )
 
@@ -440,6 +483,9 @@ toolbar model =
                     Unresponded { archivable } ->
                         archive archivable
 
+                    Responded { archivable } ->
+                        archive archivable
+
                     _ ->
                         archive False
                 ]
@@ -449,7 +495,7 @@ inboxFull : Model -> Element Msg
 inboxFull model =
     if List.all (\{ state } -> state == Archived) model.inbox then
         el [ Background.color uiGray, width fill, height fill ] <|
-            column [ centerY , spacing 20, width fill ]
+            column [ centerY, spacing 20, width fill ]
                 [ el [ centerX, Font.color dimmedText ] <| text "You're all done!"
                 , el [ centerX, Font.color dimmedText, Font.size 10 ] <| text "Nothing in Inbox"
                 ]
@@ -469,8 +515,7 @@ getScript needle model =
             { id = needle
             , subject = "Error, can't find " ++ needle
             , scenes = Dict.empty
-            , first = { from = S.me, to = [ S.me ], contents = [] }
-            , actions = []
+            , start = "lol"
             }
 
 

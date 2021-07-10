@@ -18,7 +18,8 @@ type alias Email =
 type alias EmailResponse =
     { shortText : String
     , email : Email
-    , next : String
+    , next : Maybe String
+    , spawn : List String
     }
 
 
@@ -37,7 +38,6 @@ type alias ThreadScene =
 type alias ThreadScript =
     { id : String
     , subject : String
-    , first : Email
-    , actions : List EmailResponse
+    , start : String 
     , scenes : Dict String ThreadScene 
     }

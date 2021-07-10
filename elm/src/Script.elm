@@ -1,7 +1,8 @@
-module Script exposing (me, myScript)
+module Script exposing (me, myScript, starting)
 
 import Contact
 import Dict
+import Html.Attributes exposing (start)
 import ScriptTypes as Types
 
 
@@ -37,38 +38,74 @@ college_friend =
         |> Contact.full "Christine Malcolm"
 
 
+ds : Types.AddressbookEntry
+ds =
+    Contact.create
+        |> Contact.email "info@downtownsouth.com"
+        |> Contact.short "Downtown"
+        |> Contact.full "Downtown South Bar & Grille"
+
+
+apero : Types.AddressbookEntry
+apero =
+    Contact.create
+        |> Contact.email "cheers@aperodining.com"
+        |> Contact.short "Apero"
+        |> Contact.full "Apero"
+
+
+drinkupapp : Types.AddressbookEntry
+drinkupapp =
+    Contact.create
+        |> Contact.email "email@drinkitallup.com"
+        |> Contact.short "Drink"
+        |> Contact.full "Drink it All Up!"
+
+
+starting =
+    [ "convo-ds", "convo-b", "convo-c" ]
+
+
 myScript : List Types.ThreadScript
 myScript =
     [ { id = "convo-ds"
       , subject = "Drinks tonight?"
-      , first =
-            { from = dslist
-            , to = [ me ]
-            , contents = [ "Who wants to grab a drink at the DS tonight?" ]
-            }
-      , actions =
-            [ { shortText = "Meet somewhere closer?"
-              , email =
-                    { from = me
-                    , to = [ dslist ]
-                    , contents = [ """Could we meet somewhere closer to my
-                    apartment? There's a new bar called Apero that just
-                    opened up down the street.""" ]
-                    }
-              , next = "a-one"
-              }
-            , { shortText = "I'm in"
-              , email =
-                    { from = me
-                    , to = [ dslist ]
-                    , contents = [ "Save me a seat!" ]
-                    }
-              , next = "a-one"
-              }
-            ]
+      , start = "a-zero"
       , scenes =
             Dict.fromList
-                [ ( "a-one"
+                [ ( "a-zero"
+                  , { receivedEmail =
+                        { from = dslist
+                        , to = [ me ]
+                        , contents = [ "Who wants to grab a drink at the DS tonight?" ]
+                        }
+                    , actions =
+                        [ Types.Respond
+                            { shortText = "Meet somewhere closer?"
+                            , email =
+                                { from = me
+                                , to = [ dslist ]
+                                , contents = [ """Could we meet somewhere closer to my
+                    apartment? There's a new bar called Apero that just
+                    opened up down the street.""" ]
+                                }
+                            , next = Just "a-one"
+                            , spawn = [ "apero-spam" ]
+                            }
+                        , Types.Respond
+                            { shortText = "I'm in"
+                            , email =
+                                { from = me
+                                , to = [ dslist ]
+                                , contents = [ "Save me a seat!" ]
+                                }
+                            , next = Just "a-one"
+                            , spawn = [ "ds-spam", "app-spam" ]
+                            }
+                        ]
+                    }
+                  )
+                , ( "a-one"
                   , { receivedEmail =
                         { from = dslist
                         , to = [ me ]
@@ -82,7 +119,8 @@ myScript =
                                 , to = [ dslist ]
                                 , contents = [ "Go Left" ]
                                 }
-                            , next = "a-two"
+                            , next = Just "a-two"
+                            , spawn = []
                             }
                         , Types.Respond
                             { shortText = "Go Right"
@@ -91,7 +129,8 @@ myScript =
                                 , to = [ dslist ]
                                 , contents = [ "Go Right" ]
                                 }
-                            , next = "a-three"
+                            , next = Just "a-three"
+                            , spawn = []
                             }
                         ]
                     }
@@ -140,49 +179,58 @@ myScript =
       }
     , { id = "convo-b"
       , subject = "Your thesis progress"
-      , first =
-            { from = advisor
-            , to = [ me ]
-            , contents = [ "Naolin,",
-                """I had some questions about this last chapter you sent
+      , start = "b-1"
+      , scenes =
+            Dict.fromList
+                [ ( "b-1"
+                  , { receivedEmail =
+                        { from = advisor
+                        , to = [ me ]
+                        , contents =
+                            [ "Naolin,"
+                            , """I had some questions about this last chapter you sent
                 me. I couldn't find the `Lemma 4.8' you referenced in your
                 proof of cut elimination, and it seems critical to making
                 the whole thing hang together. Actually, I'm not sure your
                 logic admits cut at all. Please get back to me to address
-                this urgent matter.""",
-                "Prof. Zhou"
-            ]
-            }
-      , actions =
-            [ { shortText = "Haven't proved it yet"
-              , email =
-                    { from = me
-                    , to = [ advisor ]
-                    , contents = [ "Prof. Zhou,",
-                      """Oh, thanks for catching that! Yeah, I hadn't
+                this urgent matter."""
+                            , "Prof. Zhou"
+                            ]
+                        }
+                    , actions =
+                        [ Types.Respond
+                            { shortText = "Haven't proved it yet"
+                            , email =
+                                { from = me
+                                , to = [ advisor ]
+                                , contents =
+                                    [ "Prof. Zhou,"
+                                    , """Oh, thanks for catching that! Yeah, I hadn't
                       proved that lemma yet. I was working on it but I got
                       stuck on the commutative case. Maybe we could meet to
                       talk it through."""
-                    ]
+                                    ]
+                                }
+                            , next = Just "b-2"
+                            , spawn = []
+                            }
+                        ]
                     }
-              , next = "b-2"
-              }
-            ]
-      , scenes =
-            Dict.fromList
-                [ ( "b-2"
+                  )
+                , ( "b-2"
                   , { receivedEmail =
                         { from = advisor
                         , to = [ me ]
-                        , contents = [ "Naolin,",
-                          """Don't waste your time. I found a
+                        , contents =
+                            [ "Naolin,"
+                            , """Don't waste your time. I found a
                           counterexample to the cut elimination theorem
                           (attached).
                           The issue is with your side condition in the
                           ELT-E rule. Remind me why you needed that side
-                          condition again?""",
-                          "Zhou"
-                        ]
+                          condition again?"""
+                            , "Zhou"
+                            ]
                         }
                     , actions =
                         [ Types.Respond
@@ -192,7 +240,8 @@ myScript =
                                 , to = [ advisor ]
                                 , contents = [ "Second response" ]
                                 }
-                            , next = "b-3"
+                            , next = Just "b-3"
+                            , spawn = []
                             }
                         ]
                     }
@@ -211,7 +260,8 @@ myScript =
                                 , to = [ advisor ]
                                 , contents = [ "Third response" ]
                                 }
-                            , next = "b-4"
+                            , next = Just "b-4"
+                            , spawn = []
                             }
                         ]
                     }
@@ -228,36 +278,41 @@ myScript =
                   )
                 ]
       }
-
     , { id = "convo-c"
       , subject = "Jobs at my company"
-      , first =
-            { from = college_friend
-            , to = [ me ]
-            , contents = [ "Hey " ++ me.short ++ """! Can't wait to see you when
+      , start = "c-1"
+      , scenes =
+            Dict.fromList
+                [ ( "c-1"
+                  , { receivedEmail =
+                        { from = college_friend
+                        , to = [ me ]
+                        , contents = [ "Hey " ++ me.short ++ """! Can't wait to see you when
             you get into town! 
 
             Also, wanted to let you know Panoptico is hiring research
             software engineers in machine learning. When are you graduating
             again? It'd be so awesome if you came and worked here. Let me
             know if you're interested and I'll talk to my boss.""" ]
-            }
-      , actions =
-            [ { shortText = "Also looking forward"
-              , email =
-                    { from = me
-                    , to = [ college_friend ]
-                    , contents = [ """I'm looking forward to it too boo.
+                        }
+                    , actions =
+                        [ Types.Respond
+                            { shortText = "Also looking forward"
+                            , email =
+                                { from = me
+                                , to = [ college_friend ]
+                                , contents = [ """I'm looking forward to it too boo.
                     Haha, don't you know never to ask a grad student when
                     they're finishing their thesis? But honestly I could
                     bail if a good job comes along. Tell me more?""" ]
+                                }
+                            , next = Just "c-2"
+                            , spawn = []
+                            }
+                        ]
                     }
-              , next = "c-2"
-              }
-            ]
-      , scenes =
-            Dict.fromList
-                [ ( "c-2"
+                  )
+                , ( "c-2"
                   , { receivedEmail =
                         { from = college_friend
                         , to = [ me ]
@@ -271,7 +326,8 @@ myScript =
                                 , to = [ college_friend ]
                                 , contents = [ "Second response" ]
                                 }
-                            , next = "c-3"
+                            , next = Just "c-3"
+                            , spawn = []
                             }
                         ]
                     }
@@ -290,7 +346,8 @@ myScript =
                                 , to = [ college_friend ]
                                 , contents = [ "Third response" ]
                                 }
-                            , next = "c-4"
+                            , next = Just "c-4"
+                            , spawn = []
                             }
                         ]
                     }
@@ -303,6 +360,93 @@ myScript =
                         }
                     , actions =
                         []
+                    }
+                  )
+                ]
+      }
+    , { id = "ds-spam"
+      , subject = "Downtown South is open!"
+      , start = "start"
+      , scenes =
+            Dict.fromList
+                [ ( "start"
+                  , { receivedEmail =
+                        { from = ds
+                        , to = [ me ]
+                        , contents =
+                            [ "Downtown South is open!"
+                            , """After extenisve repairs, the Downtown South Bar & Grille
+          is back open for business. In honor of our flood damage,
+          we've got a disaster-themed menu for you all tonight!"""
+                            , """Flood the fires of your appetite with a nice cold drink and let
+          Wet Willie do the cooking: enjoy Drenched Nachos, (Advancing)
+          Surf and (Retreating) Turf, or try out our brand-new patented
+          Storm Sturgeon Salad."""
+                            , """"""
+                            , """Hurry in before the next full moon floods us again!"""
+                            , """— Wet Willie from the Grille"""
+                            ]
+                        }
+                    , actions = [ Types.Archive ]
+                    }
+                  )
+                ]
+      }
+    , { id = "apero-spam"
+      , subject = "Apero Grand Opening: Next Thursday"
+      , start = "start"
+      , scenes =
+            Dict.fromList
+                [ ( "start"
+                  , { receivedEmail =
+                        { from = ds
+                        , to = [ me ]
+                        , contents =
+                            [ """Dear loyal early customer!"""
+                            , """Here at Apero, we're been excited by the early response 
+                we've gotten during our "soft-open" period this month. We wanted to
+                let all of our first fans know that our official Grand Opening party
+                is happening soon: next Thursday we'll not just be open, but we'll
+                be open with bells on!"""
+                            , """Come on down in your fanciest tuxedo (or your nicest t-shirt and
+                ripped jeans) for
+                drink specials, 3-for-1 appetizers, and a grand old time at our grand
+                opening. Or come on by sooner: we're exited to see you anytime, and
+                you've clearly figured out that we're here without a grand opening!"""
+                            , """"""
+                            , """Your favorite terribly-kept neighborhood boozy secret,"""
+                            , """Apero Staff"""
+                            ]
+                        }
+                    , actions = [ Types.Archive ]
+                    }
+                  )
+                ]
+      }
+    , { id = "app-spam"
+      , subject = "Thanks for downloading Drink.up"
+      , start = "start"
+      , scenes =
+            Dict.fromList
+                [ ( "start"
+                  , { receivedEmail =
+                        { from = ds
+                        , to = [ me ]
+                        , contents =
+                            [ """Welcome to the thirstiest and tastiest family you'll
+                ever be a part of... unless you've got a really cool family, we guess!"""
+                            , """Remember to use the Drink.up app to check in whenever you have a 
+                new beer, some fancy soda... or even when you grab some tap water and
+                chug it down!"""
+                            , """For every liter of beverage you track on the Drink.up app, you'll
+                get points towards free food and travel. Why? Because We've Got Venture
+                Capitol Money, That's Why™"""
+                            , """"""
+                            , """Your friends at Team Drink.up"""
+                            , """https://drink.up/"""
+                            ]
+                        }
+                    , actions = [ Types.Archive ]
                     }
                   )
                 ]
