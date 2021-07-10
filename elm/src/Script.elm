@@ -398,7 +398,7 @@ myScript =
             Dict.fromList
                 [ ( "start"
                   , { receivedEmail =
-                        { from = ds
+                        { from = apero
                         , to = [ me ]
                         , contents =
                             [ """Dear loyal early customer!"""
@@ -429,7 +429,7 @@ myScript =
             Dict.fromList
                 [ ( "start"
                   , { receivedEmail =
-                        { from = ds
+                        { from = drinkupapp
                         , to = [ me ]
                         , contents =
                             [ """Welcome to the thirstiest and tastiest family you'll
