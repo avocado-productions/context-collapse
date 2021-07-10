@@ -24,7 +24,7 @@ view model =
             [ -- Left Bar
               row [ paddingEach { top = UI.externalChromePadding, left = UI.externalChromePadding, right = 0, bottom = 0 }, width <| px UI.leftMenuWidth, height fill ]
                 [ image [ width <| px UI.logoWidth, height <| px UI.logoHeight, alignTop ] { src = "assets/avocomm-logo.png", description = "AvoComm webmail client logo" }
-                , el [ width fill, height <| px UI.logoHeight, alignTop, Font.size 54, UI.uiFont ] (el [ alignBottom ] <| text "voComm")
+                , el [ width fill, height <| px UI.logoHeight, alignTop, Font.size 54, UI.logoFont ] (el [ alignBottom ] <| text "voComm")
                 ]
             , -- Main panel
               column [ height fill, width fill ] <|
@@ -47,6 +47,7 @@ view model =
             ]
 
 
+toolbarButton : String -> String -> Maybe msg -> Element msg
 toolbarButton symbol desc action =
     row
         ([ spacing 4, height (px 40), paddingXY 10 0, Border.rounded 40, Region.navigation, htmlAttribute (Html.Attributes.style "user-select" "none") ]
@@ -59,7 +60,7 @@ toolbarButton symbol desc action =
                )
         )
         [ el [ centerY, Font.size 20, alignTop, centerY ] (text symbol)
-        , el [ centerY, UI.uiFont, Font.hairline, Font.size 20, centerY, paddingEach { top = 4, bottom = 0, left = 0, right = 0 } ] (text desc)
+        , el [ centerY, UI.uiFont, Font.hairline, Font.size 20, centerY ] (text desc)
         ]
 
 
@@ -101,8 +102,8 @@ inboxFull model =
     if List.all (\{ state } -> state == App.Archived) model.inbox then
         el [ Background.color Color.uiGray, width fill, height fill ] <|
             column [ centerY, spacing 20, width fill ]
-                [ el [ centerX, Font.color Color.dimmedText ] <| text "You're all done!"
-                , el [ centerX, Font.color Color.dimmedText, Font.size 10 ] <| text "Nothing in Inbox"
+                [ el [ centerX, UI.contentFont, Font.color Color.dimmedText ] <| text "You're all done!"
+                , el [ centerX, UI.contentFont, Font.color Color.dimmedText, Font.size 10 ] <| text "Nothing in Inbox"
                 ]
 
     else
@@ -163,16 +164,18 @@ threadPreview model inboxIndex { scriptId, contents, state } =
             [ width fill, height UI.threadHeight, Background.color bgColor ]
             [ el [ width UI.leftBuffer1, centerY ] (el [ centerX ] (Element.html Assets.starNo))
             , el [ width UI.leftBuffer2, centerY ] (el [ centerX ] (Element.html important))
-            , el
-                [ weight, width (px 250), height fill, Element.pointer, Events.onClick (App.OpenThread location) ]
-                (el [ centerY ] (text "People"))
-            , el
-                [ weight, width fill, height fill, Element.pointer, Events.onClick (App.OpenThread location) ]
-                (el [ centerY ] (getScript scriptId model |> .subject |> text))
-            , el
-                [ weight, width (px 150), height fill, Element.alignRight, Element.pointer, Events.onClick (App.OpenThread location) ]
-                (el [ centerY, Element.alignRight ] (text (String.fromInt (String.length scriptId) ++ " KB")))
-            , el [ width UI.rightBuffer, height UI.threadHeight, Element.alignRight ] Element.none
+            , row [ width fill, height fill, pointer, Events.onClick (App.OpenThread location), UI.contentFont ]
+                [ el
+                    [ weight, width (px 250), height fill ]
+                    (el [ centerY ] (text "People"))
+                , el
+                    [ weight, width fill, height fill ]
+                    (el [ centerY ] (getScript scriptId model |> .subject |> text))
+                , el
+                    [ weight, width (px 150), height fill ]
+                    (el [ centerY, Element.alignRight ] (text (String.fromInt (String.length scriptId) ++ " KB")))
+                , el [ width UI.rightBuffer, height UI.threadHeight, Element.alignRight ] Element.none
+                ]
             ]
             |> Just
 
@@ -190,7 +193,7 @@ threadFull model { inboxIndex, scriptId } =
         (el [ height (px 10) ] Element.none
             :: row [ width fill ]
                 [ el [ width UI.leftBuffer ] none
-                , el [ Font.size 24 ] (text script.subject)
+                , el [ Font.size 24, UI.contentFont ] (text script.subject)
                 ]
             :: (List.map viewEmail thread.contents |> List.intersperse UI.separator)
             ++ [ case thread.state of
@@ -223,6 +226,7 @@ suggestionButton selected suggestionIndex shortMessage =
         , Border.rounded 5
         , paddingXY 20 10
         , width shrink
+        , UI.contentFont
         ]
         (text shortMessage)
 
@@ -266,7 +270,7 @@ viewEmailResponse emailResponse =
                 , Border.glow Color.uiGray 1.0
                 ]
                 (column [ width fill, spacing 20 ]
-                    [ viewResponse "To" emailResponse.email.to
+                    [ viewResponse "TO" emailResponse.email.to
                     , column [ spacing 10 ] (List.map (\par -> paragraph [] [ text par ]) emailResponse.email.contents)
                     , UI.separator
                     , el
@@ -279,6 +283,7 @@ viewEmailResponse emailResponse =
                         , Border.rounded 5
                         , paddingXY 20 10
                         , width shrink
+                        , UI.uiFont
                         ]
                         (text "Send")
                     ]
@@ -295,12 +300,12 @@ viewResponse kind records =
             none
 
         _ ->
-            row [ width fill, spacing 15 ] [ text kind, wrappedRow [ width fill, spacing 15 ] (List.map toPill records) ]
+            row [ width fill, spacing 15, UI.uiFont ] [ text kind, wrappedRow [ width fill, spacing 15 ] (List.map toPill records) ]
 
 
 toPill : Script.AddressbookEntry -> Element msg
 toPill record =
-    el [ paddingXY 10 0, height (px 22), Border.width 1, Border.rounded 10, Font.size 15, Border.color (rgb255 255 140 0) ] (el [ centerY ] (text record.full))
+    el [ paddingXY 10 0, height (px 22), Border.width 1, Border.rounded 10, Font.size 15, Border.color (rgb255 255 140 0), UI.contentFont ] (el [ centerY ] (text record.full))
 
 
 viewEmail : Script.Email -> Element App.Msg
@@ -316,11 +321,11 @@ viewEmail email =
         [ el [ width UI.leftBuffer, centerX, alignTop ] (html Assets.idCircle)
         , column [ width fill, spacing 10 ]
             (paragraph [ Font.size 15 ]
-                [ el [ Font.bold ] (text email.from.full)
-                , el [ Font.color Color.dimmedText ] (text ("  <" ++ email.from.email ++ ">"))
+                [ el [ Font.bold, UI.contentFont ] (text email.from.full)
+                , el [ Font.color Color.dimmedText, UI.contentFont ] (text ("  <" ++ email.from.email ++ ">"))
                 ]
-                :: paragraph [ Font.size 15, Font.color Color.dimmedText ] [ text ("to " ++ to) ]
-                :: List.map (text >> List.singleton >> paragraph []) email.contents
+                :: row [ Font.size 15, Font.color Color.dimmedText, spacing 4 ] [ el [ UI.uiFont ] (text "TO:"), el [ UI.contentFont ] (text to) ]
+                :: List.map (text >> List.singleton >> paragraph [ UI.contentFont ]) email.contents
             )
         , el [ width UI.rightBuffer ] none
         ]

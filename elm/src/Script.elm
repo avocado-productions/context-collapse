@@ -2,7 +2,6 @@ module Script exposing (me, myScript, starting)
 
 import Contact
 import Dict
-import Html.Attributes exposing (start)
 import ScriptTypes as Types
 
 

@@ -73,4 +73,10 @@ separator =
 
 
 uiFont =
+    Font.family [ Font.typeface "BenchNine", Font.sansSerif ]
+
+logoFont =
     Font.family [ Font.typeface "Yanone Kaffeesatz", Font.sansSerif ]
+
+contentFont =
+    Font.family [ Font.typeface "Raleway", Font.sansSerif ]
