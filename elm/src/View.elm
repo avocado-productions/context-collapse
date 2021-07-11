@@ -80,8 +80,19 @@ view model =
     }
 
 
-toolbarButton : String -> String -> Maybe msg -> Element msg
-toolbarButton symbol desc action =
+toolbarButton : Bool -> String -> String -> Maybe msg -> Element msg
+toolbarButton emphasize symbol desc action =
+    let
+        extraBorder =
+            if emphasize then
+                [ Border.color Color.suggestionColor
+                , Border.solid
+                , Border.width 1
+                ]
+
+            else
+                []
+    in
     row
         ([ spacing 4, height (px 40), paddingXY 10 0, Border.rounded 40, Region.navigation, htmlAttribute (Html.Attributes.style "user-select" "none") ]
             ++ (case action of
@@ -91,6 +102,7 @@ toolbarButton symbol desc action =
                     Nothing ->
                         [ Font.color Color.dimmedText ]
                )
+            ++ extraBorder
         )
         [ el [ centerY, Font.size 20, alignTop, centerY ] (text symbol)
         , el [ centerY, UI.uiFont, Font.hairline, Font.size 20, centerY ] (text desc)
@@ -102,7 +114,7 @@ toolbar model =
     case model.state of
         App.InboxOpen ->
             row []
-                [ toolbarButton "⟳" "Refresh" (Just App.DoNothing) ]
+                [ toolbarButton False "⟳" "Refresh" (Just App.DoNothing) ]
 
         App.ThreadOpen { location } ->
             let
@@ -111,13 +123,13 @@ toolbar model =
 
                 archive canArchive =
                     if canArchive then
-                        toolbarButton "↓" "Archive" (Just App.ArchiveThread)
+                        toolbarButton False "↓" "Archive" (Just App.ArchiveThread)
 
                     else
-                        toolbarButton "↓" "Archive" Nothing
+                        toolbarButton False "↓" "Archive" Nothing
             in
             row []
-                [ toolbarButton "←" "Return to Inbox" (Just App.NavBack)
+                [ toolbarButton False "←" "Return to Inbox" (Just App.NavBack)
                 , case thread.state of
                     App.Unresponded { archivable } ->
                         archive archivable
@@ -220,7 +232,7 @@ threadPreview model inboxIndex { scriptId, contents, state, starred, size } =
                     (el [ centerY ] (getScript scriptId model |> .subject |> text))
                 , el
                     [ weight, width (px 150), height fill ]
-                    (el [ centerY, Element.alignRight ] (text (prettySize size)))
+                    (el [ centerY, Element.alignRight, UI.uiFont ] (text (prettySize size)))
                 , el [ width UI.rightBuffer, height UI.threadHeight, Element.alignRight ] Element.none
                 ]
             ]
@@ -372,22 +384,10 @@ viewEmailResponse emailResponse =
                 , Border.glow Color.uiGray 1.0
                 ]
                 (column [ width fill, spacing 20 ]
-                    [ viewResponse "TO" emailResponse.email.to
+                    [ viewResponse "TO:" emailResponse.email.to
                     , column [ spacing 10 ] (List.map (\par -> paragraph [] [ text par ]) emailResponse.email.contents)
                     , UI.separator
-                    , el
-                        [ Events.onClick App.SelectSuggestion
-                        , Font.color Color.white
-                        , Background.color Color.suggestionColor
-                        , Border.color Color.suggestionColor
-                        , Border.solid
-                        , Border.width 1
-                        , Border.rounded 5
-                        , paddingXY 20 10
-                        , width shrink
-                        , UI.uiFont
-                        ]
-                        (text "Send")
+                    , toolbarButton True "→" "Send" (Just App.SelectSuggestion)
                     ]
                 )
             , el [ width UI.rightBuffer ] none
