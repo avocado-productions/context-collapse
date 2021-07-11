@@ -2,9 +2,9 @@ module AppTypes exposing (ActiveThread, ActiveThreadState(..), InboxState(..), M
 
 {- Types used by the runtime. -}
 
-import ScriptTypes as Script
-import Browser.Navigation
 import Browser
+import Browser.Navigation
+import ScriptTypes as Script
 import Url exposing (Url)
 
 
@@ -24,6 +24,7 @@ type Msg
     | NavBack
     | OpenInbox
     | OpenThread ThreadLocation
+    | ToggleStar String
     | ToggleSuggestion Int
     | SelectSuggestion
     | ArchiveThread
@@ -46,6 +47,8 @@ type alias ActiveThread =
     { scriptId : String
     , contents : List Script.Email
     , state : ActiveThreadState
+    , starred : Bool
+    , size : Int
     }
 
 

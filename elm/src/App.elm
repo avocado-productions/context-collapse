@@ -40,14 +40,16 @@ init () url key =
                     script =
                         getScript scriptId model
 
-                    ( contents, responseOptions, archivable ) =
+                    { newEmails, responseOptions, archivable, size } =
                         advanceThread model script script.start
                 in
                 { model
                     | inbox =
                         { scriptId = scriptId
-                        , contents = contents
+                        , contents = newEmails
                         , state = App.Unread { archivable = archivable, responseOptions = responseOptions }
+                        , starred = False
+                        , size = size
                         }
                             :: model.inbox
                 }
@@ -80,6 +82,8 @@ getThread index model =
             { scriptId = String.fromInt index
             , contents = []
             , state = App.Responded { archivable = False }
+            , starred = False
+            , size = -1025
             }
 
 
@@ -136,6 +140,21 @@ update msg model =
             { model
                 | inbox = inboxWithRead
                 , state = App.ThreadOpen { location = location }
+            }
+                |> Cmd.pure
+
+        App.ToggleStar scriptId ->
+            { model
+                | inbox =
+                    List.map
+                        (\thread ->
+                            if thread.scriptId == scriptId then
+                                { thread | starred = not thread.starred }
+
+                            else
+                                thread
+                        )
+                        model.inbox
             }
                 |> Cmd.pure
 
@@ -215,6 +234,7 @@ update msg model =
                                     , spawn = []
                                     }
 
+                        newThreads : List App.ActiveThread
                         newThreads =
                             List.map
                                 (\spawnId ->
@@ -222,16 +242,18 @@ update msg model =
                                         script =
                                             getScript spawnId model
 
-                                        ( contents, responseOptions, archivable ) =
+                                        { newEmails, responseOptions, archivable, size } =
                                             advanceThread model script script.start
                                     in
                                     { scriptId = spawnId
-                                    , contents = contents
+                                    , contents = newEmails
                                     , state =
                                         App.Unread
                                             { archivable = archivable
                                             , responseOptions = responseOptions
                                             }
+                                    , starred = False
+                                    , size = size
                                     }
                                 )
                                 response.spawn
@@ -246,6 +268,7 @@ update msg model =
                                             { thread
                                                 | contents = thread.contents ++ [ response.email ]
                                                 , state = App.Responded { archivable = False }
+                                                , size = List.foldr (\str size -> size + 2 * String.length str) thread.size response.email.contents
                                             }
                                         |> advanceInbox model
                                    )
@@ -320,10 +343,11 @@ advanceInbox model inbox =
             case List.splitWhen (\thread -> thread.scriptId == scriptId) inbox of
                 Just ( prefix, thread :: postfix ) ->
                     case advanceThread model (getScript scriptId model) next of
-                        ( newEmails, responseOptions, archivable ) ->
+                        { newEmails, responseOptions, archivable, size } ->
                             { thread
                                 | contents = thread.contents ++ newEmails
                                 , state = App.Unread { archivable = archivable, responseOptions = responseOptions }
+                                , size = thread.size + size
                             }
                                 :: prefix
                                 ++ postfix
@@ -333,12 +357,21 @@ advanceInbox model inbox =
                     inbox
 
 
-advanceThread : App.Model -> Script.ThreadScript -> String -> ( List Script.Email, List Script.EmailResponse, Bool )
+advanceThread :
+    App.Model
+    -> Script.ThreadScript
+    -> String
+    -> { newEmails : List Script.Email, responseOptions : List Script.EmailResponse, archivable : Bool, size : Int }
 advanceThread model script next =
     Dict.get next script.scenes
         |> Maybe.map
             (\{ receivedEmail, actions } ->
                 let
+                    newSize =
+                        List.foldr (\text size -> String.length text + size)
+                            (1500 + 500 * List.length receivedEmail.to)
+                            receivedEmail.contents
+
                     -- Find an Immediate action (if one exists) from the script
                     immediateAction =
                         List.findMap
@@ -353,7 +386,7 @@ advanceThread model script next =
                             actions
 
                     -- Find all Respond actions from the script
-                    responseOptions =
+                    currentResponseOptions =
                         List.filterMap
                             (\action ->
                                 case action of
@@ -371,14 +404,22 @@ advanceThread model script next =
                         -- to be resolved in a thread by way of
                         -- the Immediate action.
                         let
-                            ( newEmails, action, archivable ) =
+                            { newEmails, responseOptions, archivable, size } =
                                 advanceThread model script goto
                         in
-                        ( receivedEmail :: newEmails, action, archivable )
+                        { newEmails = receivedEmail :: newEmails
+                        , responseOptions = responseOptions
+                        , archivable = archivable
+                        , size = size + newSize
+                        }
 
                     Nothing ->
                         -- Base case: this is the last email in the thread
                         -- extension
-                        ( [ receivedEmail ], responseOptions, List.any ((==) Script.Archive) actions )
+                        { newEmails = [ receivedEmail ]
+                        , responseOptions = currentResponseOptions
+                        , archivable = List.any ((==) Script.Archive) actions
+                        , size = newSize
+                        }
             )
-        |> Maybe.withDefault ( [], [], False )
+        |> Maybe.withDefault { newEmails = [], responseOptions = [], archivable = False, size = 0 }

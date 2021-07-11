@@ -17,8 +17,9 @@ uiGray : Color
 uiGray =
     rgb255 200 200 200
 
+
 uiLightGray : Color
-uiLightGray = 
+uiLightGray =
     rgb255 240 240 240
 
 

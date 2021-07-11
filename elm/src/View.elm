@@ -11,7 +11,6 @@ import Element.Border as Border
 import Element.Events as Events
 import Element.Font as Font
 import Element.Region as Region
-import Html
 import Html.Attributes
 import List.Extra as List
 import ScriptTypes as Script
@@ -21,28 +20,35 @@ import Util
 
 view : App.Model -> Document App.Msg
 view model =
-    { title = 
+    { title =
         case model.state of
             App.InboxOpen ->
                 let
-                    unread = 
+                    unread =
                         model.inbox
-                            |> List.filterMap (\email ->
-                                case email.state of
-                                    App.Unread _ -> Just ()
-                                    _ -> Nothing )
+                            |> List.filterMap
+                                (\email ->
+                                    case email.state of
+                                        App.Unread _ ->
+                                            Just ()
+
+                                        _ ->
+                                            Nothing
+                                )
                             |> List.length
                 in
                 if unread == 0 then
                     "Inbox - " ++ model.me.email ++ " - AvoComm"
-                else 
-                    "Inbox (" ++ String.fromInt (unread) ++ ") - " ++ model.me.email ++ " - AvoComm"
+
+                else
+                    "Inbox (" ++ String.fromInt unread ++ ") - " ++ model.me.email ++ " - AvoComm"
+
             App.ThreadOpen { location } ->
                 let
-                    script = getScript  location.scriptId model
+                    script =
+                        getScript location.scriptId model
                 in
                 script.subject ++ " - " ++ model.me.email ++ " - AvoComm"
-
     , body =
         [ Element.layout [ height fill, width fill ] <|
             row [ width fill, height fill, spacing 0 ] <|
@@ -111,7 +117,7 @@ toolbar model =
                         toolbarButton "↓" "Archive" Nothing
             in
             row []
-                [ toolbarButton "←" "Return to Inbox" (Just (App.NavBack))
+                [ toolbarButton "←" "Return to Inbox" (Just App.NavBack)
                 , case thread.state of
                     App.Unresponded { archivable } ->
                         archive archivable
@@ -159,63 +165,121 @@ getThread index model =
             { scriptId = String.fromInt index
             , contents = []
             , state = App.Responded { archivable = False }
+            , starred = False
+            , size = -1024
             }
 
 
 threadPreview : App.Model -> Int -> App.ActiveThread -> Maybe (Element App.Msg)
-threadPreview model inboxIndex { scriptId, contents, state } =
-    let
-        hasRespondAction =
-            List.any
-                (\action ->
-                    case action of
-                        Script.Respond _ ->
-                            True
-
-                        _ ->
-                            False
-                )
-
-        ( weight, bgColor, important ) =
-            case state of
-                App.Unread { responseOptions } ->
-                    ( Font.bold, Color.white, Util.choose (List.length responseOptions > 0) Assets.importantYes Assets.importantNo )
-
-                App.Unresponded { responseOptions } ->
-                    ( Font.regular, Color.uiLightGray, Util.choose (List.length responseOptions > 0) Assets.importantYes Assets.importantNo )
-
-                App.Responded _ ->
-                    ( Font.regular, Color.uiLightGray, Assets.importantNo )
-
-                App.Archived ->
-                    -- Doesn't matter
-                    ( Font.regular, Color.uiLightGray, Assets.importantNo )
-
-        location =
-            { scriptId = scriptId, inboxIndex = inboxIndex }
-    in
+threadPreview model inboxIndex { scriptId, contents, state, starred, size } =
     if state == App.Archived then
         Nothing
 
     else
+        let
+            hasRespondAction =
+                List.any
+                    (\action ->
+                        case action of
+                            Script.Respond _ ->
+                                True
+
+                            _ ->
+                                False
+                    )
+
+            ( weight, bgColor, important ) =
+                case state of
+                    App.Unread { responseOptions } ->
+                        ( Font.bold, Color.white, Util.choose (List.length responseOptions > 0) Assets.importantYes Assets.importantNo )
+
+                    App.Unresponded { responseOptions } ->
+                        ( Font.regular, Color.uiLightGray, Util.choose (List.length responseOptions > 0) Assets.importantYes Assets.importantNo )
+
+                    App.Responded _ ->
+                        ( Font.regular, Color.uiLightGray, Assets.importantNo )
+
+                    App.Archived ->
+                        -- Doesn't matter
+                        ( Font.regular, Color.uiLightGray, Assets.importantNo )
+
+            location =
+                { scriptId = scriptId, inboxIndex = inboxIndex }
+        in
         row
             [ width fill, height UI.threadHeight, Background.color bgColor ]
-            [ el [ width UI.leftBuffer1, centerY ] (el [ centerX ] (Element.html Assets.starNo))
+            [ el [ width UI.leftBuffer1, centerY, Events.onClick (App.ToggleStar scriptId) ] (el [ centerX ] (Element.html (Util.choose starred Assets.starYes Assets.starNo)))
             , el [ width UI.leftBuffer2, centerY ] (el [ centerX ] (Element.html important))
             , row [ width fill, height fill, pointer, Events.onClick (App.NavPushUrl ("/k/inbox/" ++ location.scriptId)), UI.contentFont ]
                 [ el
-                    [ weight, width (px 250), height fill ]
-                    (el [ centerY ] (text "People"))
+                    [ weight, width (px 230), height fill, clipX ]
+                    (el [ centerY ] (text <| getThreadParticipants model contents))
+                , el [ width (px 20) ] none
                 , el
                     [ weight, width fill, height fill ]
                     (el [ centerY ] (getScript scriptId model |> .subject |> text))
                 , el
                     [ weight, width (px 150), height fill ]
-                    (el [ centerY, Element.alignRight ] (text (String.fromInt (String.length scriptId) ++ " KB")))
+                    (el [ centerY, Element.alignRight ] (text (prettySize size)))
                 , el [ width UI.rightBuffer, height UI.threadHeight, Element.alignRight ] Element.none
                 ]
             ]
             |> Just
+
+
+prettySize : Int -> String
+prettySize x =
+    if x < 600 then
+        String.fromInt x ++ " bytes"
+
+    else if x < 1024 * 100 then
+        String.fromInt (x // 1024) ++ " KB"
+
+    else if x < 1024 * 1024 then
+        "0." ++ String.fromInt (x * 10 // 1024 // 1024) ++ " MB"
+
+    else
+        String.fromInt (x // 1024 // 1024) ++ " MB"
+
+
+getThreadParticipants : App.Model -> List Script.Email -> String
+getThreadParticipants model emails =
+    List.map .from emails
+        |> List.uniqueBy .email
+        |> List.map
+            (\sender ->
+                if sender.email == model.me.email then
+                    { email = sender.email, short = "me", full = "me" }
+
+                else
+                    sender
+            )
+        |> (\senders ->
+                case senders of
+                    [ { full } ] ->
+                        full
+
+                    _ ->
+                        List.map .short senders |> List.intersperse ", " |> String.concat
+           )
+
+
+
+{- }
+
+   List.map .from emails
+       -- uniq
+       |> List.foldl
+           (\sender ( set, uniq ) ->
+               if Set.member sender.email set then
+                   ( set, uniq )
+
+               else
+                   ( Set.insert sender.email set, sender :: uniq )
+           )
+           ( Set.empty, [] )
+       |> (\( _, uniq ) -> List.reverse uniq)
+-}
 
 
 threadFull : App.Model -> App.ThreadLocation -> Element App.Msg

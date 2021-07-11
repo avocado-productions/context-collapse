@@ -33,7 +33,7 @@ college_friend : Types.AddressbookEntry
 college_friend =
     Contact.create
         |> Contact.email "christine@upprcut.com"
-        |> Contact.short "C. Malcolm"
+        |> Contact.short "Christine"
         |> Contact.full "Christine Malcolm"
 
 

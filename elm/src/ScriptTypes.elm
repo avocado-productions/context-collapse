@@ -1,5 +1,7 @@
 module ScriptTypes exposing (..)
+
 import Dict exposing (Dict)
+
 
 type alias AddressbookEntry =
     { email : String
@@ -38,6 +40,6 @@ type alias ThreadScene =
 type alias ThreadScript =
     { id : String
     , subject : String
-    , start : String 
-    , scenes : Dict String ThreadScene 
+    , start : String
+    , scenes : Dict String ThreadScene
     }

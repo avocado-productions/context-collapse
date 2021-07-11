@@ -5,6 +5,7 @@ import Element exposing (Element, Length, el, fill, height, none, px, width)
 import Element.Background as Background
 import Element.Font as Font
 
+
 threadHeight : Length
 threadHeight =
     px 35
@@ -75,8 +76,10 @@ separator =
 uiFont =
     Font.family [ Font.typeface "BenchNine", Font.sansSerif ]
 
+
 logoFont =
     Font.family [ Font.typeface "Yanone Kaffeesatz", Font.sansSerif ]
+
 
 contentFont =
     Font.family [ Font.typeface "Raleway", Font.sansSerif ]
