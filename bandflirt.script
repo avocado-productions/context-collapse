@@ -1,94 +1,207 @@
-! contact Me "naolin@panopticorp.co"
-    |> full "Naolin Dawson Vega"
+! contact Me "danny@skynet.productions"
+    |> full "Danny M. Davis"
 
-! contact A "a@letter.com"
-    |> full "A. Aaaaaaa"
-    |> short "MrA"
+! contact A "a@justone.letter"
+    |> full "Andy Aaaaaaa"
+    |> short "Andy"
 
-! contact B "b@letter.com"
-    |> full "B. Bbbbbb"
-    |> short "Bee"
+! contact B "spam@spamsource.spam"
+    |> full "Spammy McSpamface"
+    |> short "Spam"
 
-! contact C "c@letter.com"
-    |> full "C. Cccccc"
+
 
 # Conversation with A
-! from A |> to Me |> to B
+! from A |> to Me 
 
-Hello world! It's _great_ to see you today.
+We gonna jam tomorrow night?
 
-Of course we'll get to the meeting notes later.
+- Andy
 
-! [Polite] |> to A |> to B >>
-  What a wonderful email. You're sure nice and good looking
-  ! next -> a-one
-! [Rude] |> to A >>
-  WTF, Mate?
-  ! next -> a-one
+! archive 
+    |> triggers "you there?" 
+    |> spawns "SPAAAAMMMM 1"
+    |> spawns "SPAAAAMMMM 2"
+    |> spawns "SPAAAAMMMM 3" >>
 
-## a-one
+! [Enthusiastic] |> to A 
+    |> triggers "scene 1"
+    |> spawns "SPAAAAMMMM 1" >>
+
+    Hell yezzzzzz my man.
+
+! [Bored] |> to A 
+    |> triggers "scene 1"
+    |> spawns "SPAAAAMMMM 1" >>
+
+    Ugh, I actually had some other plans but they fell through,
+    sure why not.
+
+! [Weirdly Polite] |> to A |> to B
+    |> triggers "scene 1"
+    |> spawns "SPAAAAMMMM 1" >>
+
+    Indubitably, my good gentelman!
+
+
+
+## you there?
 ! from A |> to Me
 
-I think you should bring the sex to band rehersal
+Hey Danny, you alive? Wanna get my busy social calendar sorted out
+(_he said, actually wanting to know if he should take another shift
+at work tonight to avoid dying of boredom._)
 
-! next -> a-two
+! archive
+    |> triggers "ghosted"
+    |> spawns "SPAAAAMMMM 4" 
+    |> spawns "SPAAAAMMMM 5" >>
 
-## a-two
+! [Yes] 
+    |> triggers "scene 1"
+    |> spawns "SPAAAMMMM 4" >>
+
+    Oh shit man, I musta deleted yout last message by accident. Yeah,
+    I'll be there.
+
+! [No] 
+    |> triggers "latermaybe"
+    |> spawns "SPAAAMMMM 4" >>
+
+    Nah, I'm not feeling up for music right now.
+
+
+
+## ghosted
 ! from A |> to Me
 
-Oh my god I meant "you should bring the **sax**," I'm so
-embarassed!
+Never heard from you... pretty bummed, are we not good?
 
-! [Weird] |> to A >>
-  Yeah wtf mate.
-  ! next -> a-three
-
-! [Whatever] |> to A >>
-  Hahaha damn you autocorrect, right?
-  ! next -> a-three
+Anyway, um... I guess maybe I'm gonna check out for awhile. Let me know
+if you want to make some music, ball's in your court D.
 
 
-! [Flirt] |> to A >>
-  Oh shoot I was all ready for the best band practice
-  ever after the first email.
+## latermaybe
+! from A |> to Me
 
-  Just kidding... unless... 👉👈
+Happens, thanks for the heads up. It worked out, though, Jenny really needed
+another pair of hands tonight.
 
-  ! next -> a-four
+If you end up deciding your up for a low-key drink, I'll be at the bar 'till
+closing.
 
-## a-three
+
+## scene 1
+! from A |> to Me
+
+Okay - I wanna try recording this time night,
+so make sure to bring the sex.
+
+! trigger -> scene 1 continued
+
+
+## scene 1 continued
+! from A |> to Me
+
+Oh my god I obviously meant "you should bring the **sax**," I'm so
+embarassed, jesus!
+
+! [Weird] |> to A 
+    |> triggers "scene 3"
+    |> spawns "SPAAAAMMMM 5" >>
+
+    Yeah wtf mate.
+
+! [Whatever] |> to A
+    |> triggers "scene 3"
+    |> spawns "SPAAAAMMMM 5" >>
+
+    Hahaha damn you autocorrect, right?
+
+! [Flirt] |> to A 
+    |> triggers "scene 4"
+    |> spawns "SPAAAAMMMM 5" >>
+
+    Oh shoot I was all super for the best band practice
+    ever after the first email.
+
+    Just kidding... unless... 👉👈
+
+
+## scene 3
 ! from A |> to Me
 
 Good practice! Same time next week?
 
-## a-four
+! archive
+
+! [Yes] |> to A >>
+    Sure thing! Unless you've got a night off this weekend
+    and want to try to record that tricky bridge again while
+    it's still fresh on our minds.
+
+! [Maybe] |> to A >>
+    I'll have to see, next week's busy. Thanks for being flexible
+    with my flaky ass, as always.
+
+
+## scene 4
 ! from A |> to Me
 
 Good... uh... practice, I guess?
 
 See you tonight? 😘
 
+! archive
+
+! [Flirt More] |> to A >>
+    Couldn't possibly know what you're talking about there 😇
+
+     - Danny
+
+    P.S. 💖
+
+
+
 # SPAAAAMMMM 1
 ! from B
 
+Spam spam spam
+
 ! [Unsubscribe] |> to B >> UNSUBSCRIBE!
+
+
 
 # SPAAAAMMMM 2
 ! from B
 
+Spam spam spam
+
 ! [Unsubscribe] |> to B >> UNSUBSCRIBE!
+
+
 
 # SPAAAAMMMM 3
 ! from B
 
+Spam spam spam
+
 ! [Unsubscribe] |> to B >> UNSUBSCRIBE!
+
+
 
 # SPAAAAMMMM 4
 ! from B
 
+Spam spam spam
+
 ! [Unsubscribe] |> to B >> UNSUBSCRIBE!
+
+
 
 # SPAAAAMMMM 5
 ! from B
+
+Spam spam spam
 
 ! [Unsubscribe] |> to B >> UNSUBSCRIBE!
