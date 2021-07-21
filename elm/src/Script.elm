@@ -8,10 +8,23 @@ import ScriptTypes as Types
 me : Types.AddressbookEntry
 me =
     Contact.create
-        |> Contact.email "naolin@panopticorp.co"
+        |> Contact.email "naolin@rivendel.edu"
         |> Contact.short "Naolin"
         |> Contact.full "Naolin Dawson Vega"
 
+sam : Types.AddressbookEntry
+sam =
+    Contact.create
+        |> Contact.email "coolsam@gmail.com"
+        |> Contact.short "Sam"
+        |> Contact.full "Samantha Quimby"
+
+erik : Types.AddressbookEntry
+erik =
+    Contact.create
+        |> Contact.email "dragonfire3489@gmail.com"
+        |> Contact.short "Erik"
+        |> Contact.full "Erik Jaffe"
 
 dslist : Types.AddressbookEntry
 dslist =
@@ -24,7 +37,7 @@ dslist =
 advisor : Types.AddressbookEntry
 advisor =
     Contact.create
-        |> Contact.email "wzhou@uni.edu"
+        |> Contact.email "wzhou@rivendel.edu"
         |> Contact.short "Wei Zhou"
         |> Contact.full "Prof. Wei Zhou"
 
@@ -106,27 +119,33 @@ myScript =
                   )
                 , ( "a-one"
                   , { receivedEmail =
-                        { from = dslist
-                        , to = [ me ]
-                        , contents = [ "Response from DS 5" ]
+                        { from = erik
+                        , to = [ me, dslist ]
+                        , contents = [ 
+                          """ I'd be up for trying something new! Standard
+                          meeting time?
+                            - Edog """ ]
                         }
                     , actions =
                         [ Types.Respond
-                            { shortText = "Go Left"
+                            { shortText = "Yeah, 7:30"
                             , email =
                                 { from = me
                                 , to = [ dslist ]
-                                , contents = [ "Go Left" ]
+                                , contents = [ "Sure, see you at 7:30" ]
                                 }
                             , next = Just "a-two"
                             , spawn = []
                             }
                         , Types.Respond
-                            { shortText = "Go Right"
+                            { shortText = "Later, 9pm"
                             , email =
                                 { from = me
-                                , to = [ dslist ]
-                                , contents = [ "Go Right" ]
+                                , to = [ erik, dslist ]
+                                , contents = [ """Um actually I need to
+                                finish something for my advisor first, so I
+                                can't be there til 9pm. The rest of you can meet
+                                earlier though.""" ]
                                 }
                             , next = Just "a-three"
                             , spawn = []
@@ -136,9 +155,9 @@ myScript =
                   )
                 , ( "a-two"
                   , { receivedEmail =
-                        { from = dslist
-                        , to = [ me ]
-                        , contents = [ "Good ending" ]
+                        { from = sam
+                        , to = [ dslist, me ]
+                        , contents = [ "That was fun everyone!" ]
                         }
                     , actions =
                         []
@@ -146,9 +165,10 @@ myScript =
                   )
                 , ( "a-three"
                   , { receivedEmail =
-                        { from = dslist
+                        { from = sam
                         , to = [ me ]
-                        , contents = [ "Bad ending starts" ]
+                        , contents = [ """You make it home ok?? You were
+                        pretty out of it.""" ]
                         }
                     , actions =
                         [ Types.Immediate "a-four" ]
@@ -158,7 +178,7 @@ myScript =
                   , { receivedEmail =
                         { from = dslist
                         , to = [ me ]
-                        , contents = [ "Bad ending continues" ]
+                        , contents = [ "You were pretty out of it, continued" ]
                         }
                     , actions =
                         [ Types.Immediate "a-five" ]
@@ -168,7 +188,7 @@ myScript =
                   , { receivedEmail =
                         { from = dslist
                         , to = [ me ]
-                        , contents = [ "Bad ending ends" ]
+                        , contents = [ "Bad ending" ]
                         }
                     , actions =
                         []
@@ -233,13 +253,40 @@ myScript =
                         }
                     , actions =
                         [ Types.Respond
-                            { shortText = "Respond"
+                            { shortText = "It's not that important"
                             , email =
                                 { from = me
                                 , to = [ advisor ]
-                                , contents = [ "Second response" ]
+                                , contents = [ 
+                                  """Well, hmm. I just worked out all my
+                                    benchmark examples without it, so I
+                                    can't really remember why I needed it.
+                                    It might have been to handle some
+                                    corner case that disappeared with the
+                                    2-context redesign. Does the proof go
+                                    through without it?""" 
+                                  ]
                                 }
                             , next = Just "b-3"
+                            , spawn = []
+                            },
+                          Types.Respond
+                            { shortText = "It's really important"
+                            , email =
+                                { from = me
+                                , to = [ advisor ]
+                                , contents = [ 
+                                    """Oh, wait, I remember... without that
+                                    side condition, the whole logic is
+                                    degenerate. It lets you prove A from
+                                    \\circ{A}, basically, so the monad does
+                                    nothing at all. So, okay, we really
+                                    need to meet and talk this through. Are
+                                    you available tomorrow morning? I can
+                                    make it to campus early if need be."""
+                                    ]
+                                }
+                            , next = Just "b-4"
                             , spawn = []
                             }
                         ]
