@@ -160,7 +160,7 @@ myScript =
                         , contents = [ """Oh if we're not meeting til 9 I can
                         totally be there ^.^""" ]
                         }
-                        , actions = [ Types.Archive ] -- Continue with a-three
+                        , actions = [ Types.Archive ] -- XXX - continue with a-three
                     }
                   )
                 , ( "a-two"
@@ -169,8 +169,18 @@ myScript =
                         , to = [ dslist, me ]
                         , contents = [ "Got a table in the back!" ]
                         }
-                        , actions = [ Types.Archive ]
+                        -- , actions = [ Types.Archive ]
+                        , actions = [ Types.Immediate "sam-cant-make-it" ]
                     }
+                  )
+                , ( "sam-cant-make-it"
+                    , { receivedEmail = 
+                        { from = sam
+                        , to = [dslist, me]
+                        , contents = [ "sry can't make it :("]
+                        }
+                        , actions = [ Types.Archive] 
+                    } 
                   )
                 , ( "a-three"
                   , { receivedEmail =
