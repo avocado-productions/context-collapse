@@ -87,8 +87,8 @@ myScript =
             Dict.fromList
                 [ ( "a-zero"
                   , { receivedEmail =
-                        { from = dslist
-                        , to = [ me ]
+                        { from = erik
+                        , to = [ dslist ]
                         , contents = [ "Who wants to grab a drink at the DS tonight?" ]
                         }
                     , actions =
@@ -111,7 +111,7 @@ myScript =
                                 , to = [ dslist ]
                                 , contents = [ "Save me a seat!" ]
                                 }
-                            , next = Just "a-one"
+                            , next = Just "a-two"
                             , spawn = [ "ds-spam", "app-spam" ]
                             }
                         ]
@@ -147,20 +147,29 @@ myScript =
                                 can't be there til 9pm. The rest of you can meet
                                 earlier though.""" ]
                                 }
-                            , next = Just "a-three"
+                            , next = Just "a-sam-in"
                             , spawn = []
                             }
                         ]
                     }
                   )
+                , ("a-sam-in",
+                    { receivedEmail =
+                        { from = sam
+                        , to = [dslist, me]
+                        , contents = [ """Oh if we're not meeting til 9 I can
+                        totally be there ^.^""" ]
+                        }
+                        , actions = [ Types.Archive ] -- Continue with a-three
+                    }
+                  )
                 , ( "a-two"
                   , { receivedEmail =
-                        { from = sam
+                        { from = erik
                         , to = [ dslist, me ]
-                        , contents = [ "That was fun everyone!" ]
+                        , contents = [ "Got a table in the back!" ]
                         }
-                    , actions =
-                        []
+                        , actions = [ Types.Archive ]
                     }
                   )
                 , ( "a-three"
@@ -170,32 +179,12 @@ myScript =
                         , contents = [ """You make it home ok?? You were
                         pretty out of it.""" ]
                         }
-                    , actions =
-                        [ Types.Immediate "a-four" ]
+                    , actions = [ Types.Archive ] -- XXX continue
                     }
                   )
-                , ( "a-four"
-                  , { receivedEmail =
-                        { from = dslist
-                        , to = [ me ]
-                        , contents = [ "You were pretty out of it, continued" ]
-                        }
-                    , actions =
-                        [ Types.Immediate "a-five" ]
-                    }
-                  )
-                , ( "a-five"
-                  , { receivedEmail =
-                        { from = dslist
-                        , to = [ me ]
-                        , contents = [ "Bad ending" ]
-                        }
-                    , actions =
-                        []
-                    }
-                  )
-                ]
-      }
+                ] --- End of DS thread emails
+      } --- End of DS thread convo
+
     , { id = "convo-b"
       , subject = "Your thesis progress"
       , start = "b-1"
@@ -296,16 +285,36 @@ myScript =
                   , { receivedEmail =
                         { from = advisor
                         , to = [ me ]
-                        , contents = [ "Third email" ]
+                        , contents = [ """
+                          That's your job to figure out. If it doesn't
+                          work, we may need to reschedule your defense next
+                          month. Can you please work on the proof tonight
+                          and let me know the result?
+                          """ ]
                         }
                     , actions =
                         [ Types.Respond
-                            { shortText = "Respond"
+                            { shortText = "*sigh* So much for socializing."
                             , email =
                                 { from = me
                                 , to = [ advisor ]
-                                , contents = [ "Third response" ]
+                                , contents = [ """Alright, sure. Of course. 
+                                  I'll let you know as soon as I can.""" 
+                                  ]
                                 }
+                            , next = Just "b-5"
+                            , spawn = []
+                            },
+                          Types.Respond
+                            { shortText = "No, sorry"
+                            , email =
+                              { from = me
+                              , to = [ advisor ]
+                              , contents = [
+                                """I can't tonight. Could we meet tomorrow
+                                morning and talk it through?"""
+                                ]
+                              }
                             , next = Just "b-4"
                             , spawn = []
                             }
@@ -316,10 +325,23 @@ myScript =
                   , { receivedEmail =
                         { from = advisor
                         , to = [ me ]
-                        , contents = [ "Fourth email" ]
+                        , contents = [ """
+                          Okay. I will be busy starting 9am but if you get
+                          here at 8 I will have time for you. See you at 8
+                          sharp.
+                          """ ]
                         }
                     , actions =
-                        []
+                        [ Types.Archive ]
+                    }
+                  )
+                , ( "b-5"
+                  , { receivedEmail =
+                      { from = advisor
+                      , to = [ me ]
+                      , contents = [ """Great. Thx""" ]
+                      }
+                    , actions = [ Types.Archive ]
                     }
                   )
                 ]
@@ -347,10 +369,18 @@ myScript =
                             , email =
                                 { from = me
                                 , to = [ college_friend ]
-                                , contents = [ """I'm looking forward to it too boo.
-                    Haha, don't you know never to ask a grad student when
-                    they're finishing their thesis? But honestly I could
-                    bail if a good job comes along. Tell me more?""" ]
+                                , contents = [ 
+                                    "I'm looking forward to it too, boo!",
+                                    """Uhhhh <_< don't you know never to ask a grad student when
+                                    they're finishing their thesis? ^_^;""",
+                                    """I guess it's going alright. Honestly, my advisor
+                                    really stresses me out, and sometimes I just want to
+                                    do a job where I can make progress every day and see
+                                    more immediate gratification, you
+                                    know?""",
+                                    "Talk soon,",
+                                    "Naolin"
+                                  ]
                                 }
                             , next = Just "c-2"
                             , spawn = []
@@ -362,50 +392,58 @@ myScript =
                   , { receivedEmail =
                         { from = college_friend
                         , to = [ me ]
-                        , contents = [ "Second email" ]
+                        , contents = [ """Yeah I hear you. Well, I mean, want
+                            me to bring up your name to our recruiting
+                            team?""" ]
                         }
                     , actions =
                         [ Types.Respond
-                            { shortText = "Respond"
+                            { shortText = "Sure, why not"
                             , email =
                                 { from = me
                                 , to = [ college_friend ]
-                                , contents = [ "Second response" ]
+                                , contents = [ """You know what... sure. Why not? It
+                                    can't hurt to give myself some options.
+                                    Here's my CV (attached).""" ]
                                 }
                             , next = Just "c-3"
                             , spawn = []
+                            },
+                          Types.Respond
+                            { shortText = "Nah"
+                              , email =
+                                { from = me,
+                                  to = [ college_friend ],
+                                  contents = [ """No thanks. I want to focus
+                                  on finishing up and probably apply for
+                                  faculty jobs first, as unlikely as it
+                                  seems that I'll ever get one lolsob...
+                                  but I'll let you know if that doesn't pan
+                                      out."""]
+
+                                }
+                              , next = Just "c-4"
+                              , spawn = []
                             }
-                        ]
+                        ] -- End response options for c-2
                     }
                   )
                 , ( "c-3"
                   , { receivedEmail =
                         { from = college_friend
                         , to = [ me ]
-                        , contents = [ "Third email" ]
+                        , contents = [ "Alright fair enough. See ya soon!" ]
                         }
-                    , actions =
-                        [ Types.Respond
-                            { shortText = "Respond"
-                            , email =
-                                { from = me
-                                , to = [ college_friend ]
-                                , contents = [ "Third response" ]
-                                }
-                            , next = Just "c-4"
-                            , spawn = []
-                            }
-                        ]
+                    , actions = [ Types.Archive ]
                     }
                   )
                 , ( "c-4"
                   , { receivedEmail =
                         { from = college_friend
                         , to = [ me ]
-                        , contents = [ "Fourth email" ]
+                        , contents = [ "Awesome I'll pass this on! Thanks!" ]
                         }
-                    , actions =
-                        []
+                    , actions = [ Types.Archive ]
                     }
                   )
                 ]
