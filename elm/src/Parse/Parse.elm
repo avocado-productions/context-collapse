@@ -8,14 +8,11 @@ import Camperdown.Parse.Syntax as Camp
 import Camperdown.Problem as Problem
 import Char.Extra as Char
 import Dict exposing (Dict)
-import Html exposing (b)
 import List.Extra as List
 import Maybe.Extra as Maybe
 import Result.Extra as Result
-import Script as S
 import ScriptTypes as Script
-import Set exposing (Set)
-import Svg.Attributes exposing (in_, result)
+import Set
 
 
 resultFold : (a -> b -> Result x b) -> b -> List a -> Result x b
@@ -77,8 +74,8 @@ parse str =
         rawemails =
             contactinfo
                 |> Result.andThen
-                    (\{ contacts } ->
-                        List.map (convertSection contacts) sections
+                    (\{ me, contacts } ->
+                        List.map (convertSection me contacts) sections
                             |> Result.combine
                     )
 
@@ -216,6 +213,7 @@ parse str =
         contactinfo
         script
         starting
+        |> Debug.log "wee"
 
 
 type alias ImpliedResource =
@@ -231,8 +229,8 @@ type alias ConvertedSection =
     }
 
 
-convertSection : Dict String Script.AddressbookEntry -> Camp.Section -> Result String ConvertedSection
-convertSection contacts { level, label, contents } =
+convertSection : Script.AddressbookEntry -> Dict String Script.AddressbookEntry -> Camp.Section -> Result String ConvertedSection
+convertSection me contacts { level, label, contents } =
     (case label of
         Camp.Anonymous line ->
             Err ("Section on line " ++ String.fromInt line ++ " needs to be give a name.")
@@ -265,7 +263,7 @@ convertSection contacts { level, label, contents } =
                     |> Result.andThen
                         (\( { from, to }, rest ) ->
                             rest
-                                |> resultFold convertEmailElement { from = from, to = to, email = [], actions = [], scenes = [], threads = [] }
+                                |> resultFold (convertEmailElement me contacts) { from = from, to = to, email = [], actions = [], scenes = [], threads = [] }
                         )
                     |> Result.map
                         (\{ from, to, email, actions, scenes, threads } ->
@@ -279,6 +277,65 @@ convertSection contacts { level, label, contents } =
                             , impliedThreads = List.map (\thread -> { name = Loc.value thread, at = Loc.location thread, inSection = sectionName }) threads
                             }
                         )
+            )
+
+
+convertActionParameters : Dict String Script.AddressbookEntry -> Bool -> List (Loc Camp.Parameter) -> Result String { spawn : List (Loc String), next : Maybe (Loc String), to : List Script.AddressbookEntry }
+convertActionParameters addressBook hasTo parameters =
+    resultFold
+        (\parameter accum ->
+            case parameter of
+                ( _, ( ( loc, "to" ), [ ( varloc, Camp.Variable ident ) ] ) ) ->
+                    case Dict.get ident addressBook of
+                        Just address ->
+                            if hasTo then
+                                Ok { accum | to = address :: accum.to }
+
+                            else
+                                Err ("Did not expect `|> to` parameters in this command (line " ++ String.fromInt loc.start.line ++ ")")
+
+                        Nothing ->
+                            Err ("Email from unknown identity " ++ ident ++ " on line " ++ String.fromInt varloc.start.line)
+
+                ( _, ( ( loc, "to" ), _ ) ) ->
+                    Err ("Parameter `|> to` takes a single argument, an identifier for an contact in the address book (line " ++ String.fromInt loc.start.line ++ ")")
+
+                ( _, ( ( _, "spawns" ), [ ( loc, Camp.String str ) ] ) ) ->
+                    Ok { accum | spawn = ( loc, str ) :: accum.spawn }
+
+                ( _, ( ( loc, "spawns" ), _ ) ) ->
+                    Err ("Parameter `|> spawn` takes a single argument, a string referencing the thread to be spawned (line " ++ String.fromInt loc.start.line ++ ")")
+
+                ( _, ( ( _, "triggers" ), [ ( loc, Camp.String str ) ] ) ) ->
+                    case accum.trigger of
+                        Nothing ->
+                            Ok { accum | trigger = Just ( loc, str ) }
+
+                        Just ( loc2, str2 ) ->
+                            Err ("An action can trigger at most one scene within the thread, but this action tries to trigger scene \"" ++ str2 ++ "\" on line " ++ String.fromInt loc2.start.line ++ " and then \"" ++ str ++ "\" on line " ++ String.fromInt loc.start.line)
+
+                ( _, ( ( loc, "triggers" ), _ ) ) ->
+                    Err ("Parameter `|> trigger` takes a single argument, a string referencing the scene to be spawned (line " ++ String.fromInt loc.start.line ++ ")")
+
+                ( _, ( ( loc, param ), _ ) ) ->
+                    let
+                        expected =
+                            if hasTo then
+                                "`|> spawns`, `|> triggers`, or `|> to`"
+
+                            else
+                                "`|> spawns` or `|> triggers`"
+                    in
+                    Err ("Only expected " ++ expected ++ " parameters, not `|> " ++ param ++ "` (line " ++ String.fromInt loc.start.line ++ ")")
+        )
+        { spawn = [], trigger = Nothing, to = [] }
+        parameters
+        |> Result.map
+            (\{ spawn, trigger, to } ->
+                { next = trigger
+                , spawn = List.reverse spawn
+                , to = List.reverse to
+                }
             )
 
 
@@ -314,7 +371,7 @@ convertEmailParameters addressBook l parameters =
                     Err ("Parameter `|> to` takes a single argument, an identifier for an contact in the address book (line " ++ String.fromInt loc.start.line ++ ")")
 
                 ( _, ( ( loc, param ), _ ) ) ->
-                    Err ("Only expected `|> from` or `|> to` parameters, not `|> param` (line " ++ String.fromInt loc.start.line ++ ")")
+                    Err ("Only expected `|> from` or `|> to` parameters, not `|> " ++ param ++ "` (line " ++ String.fromInt loc.start.line ++ ")")
         )
         { from = Nothing, to = [] }
         parameters
@@ -329,8 +386,17 @@ convertEmailParameters addressBook l parameters =
             )
 
 
-convertEmailElement : Camp.Element -> { a | email : List String } -> Result String { a | email : List String }
-convertEmailElement element accum =
+type alias EmailConvert a =
+    { a
+        | email : List String
+        , threads : List (Loc String)
+        , scenes : List (Loc String)
+        , actions : List Script.Action
+    }
+
+
+convertEmailElement : Script.AddressbookEntry -> Dict String Script.AddressbookEntry -> Camp.Element -> EmailConvert a -> Result String (EmailConvert a)
+convertEmailElement me contacts element accum =
     case element of
         Camp.Paragraph { contents } ->
             List.map convertMarkup contents
@@ -338,8 +404,76 @@ convertEmailElement element accum =
                 |> Result.map String.concat
                 |> Result.map (\paragraph -> { accum | email = paragraph :: accum.email })
 
-        Camp.Command { command, lines } ->
-            Ok accum
+        Camp.Command { command, lines, child } ->
+            case command of
+                ( Just ( loc, "archive" ), ( [], [] ) ) ->
+                    {- }
+                       case child of
+                           Nothing ->
+                               convertActionParameters params
+                                   |> Result.map (\{threads, scenes, actions} -> Ok { accum | threads = threads ++ accum.threads
+                                   ,  scenes = scenes ++ accum.scenes,})
+
+                           Just _ ->
+                               Err ("!archive command should not have a chevron (>>, vv, or ->), line " ++ String.fromInt loc.start.line)
+                    -}
+                    Ok { accum | actions = Script.Archive :: accum.actions }
+
+                ( Just ( loc, "archive" ), ( _, _ ) ) ->
+                    Err ("!archive shouldn't have arguments or parameters (line " ++ String.fromInt loc.start.line ++ ")")
+
+                ( Just ( _, "trigger" ), ( [ ( loc, Camp.String scene ) ], [] ) ) ->
+                    Ok
+                        { accum
+                            | actions = Script.Immediate scene :: accum.actions
+                            , scenes = ( loc, scene ) :: accum.scenes
+                        }
+
+                ( Just ( _, "respond" ), ( [ ( _, Camp.Markup text ) ], params ) ) ->
+                    let
+                        shortResponse_r =
+                            List.map convertMarkup text
+                                |> Result.combine
+                                |> Result.map String.concat
+
+                        emailResponse_r =
+                            case child of
+                                Nothing ->
+                                    Err "!respond must have a cheveron (>> or vv) to include the actual email"
+
+                                Just (Camp.Reference ( rloc, str )) ->
+                                    Err ("Named diverts like \"-> " ++ str ++ "\" not allowed (line " ++ String.fromInt rloc.start.line ++ ")")
+
+                                Just (Camp.Immediate response) ->
+                                    convertEmailResponse response
+
+                                Just (Camp.Nested response) ->
+                                    convertEmailResponse response
+                    in
+                    Result.map3
+                        (\shortResponse emailResponse { to, next, spawn } ->
+                            { accum
+                                | actions =
+                                    Script.Respond
+                                        { shortText = shortResponse
+                                        , email = { to = to, from = me, contents = emailResponse }
+                                        , next = Maybe.map Loc.value next
+                                        , spawn = List.map Loc.value spawn
+                                        }
+                                        :: accum.actions
+                                , threads = spawn ++ accum.threads
+                                , scenes = Maybe.toList next ++ accum.scenes
+                            }
+                        )
+                        shortResponse_r
+                        emailResponse_r
+                        (convertActionParameters contacts True params)
+
+                ( Just ( loc, "respond" ), ( _, params ) ) ->
+                    Err ("!respond should only have a single argument, markup text in brackets [like this] (line " ++ String.fromInt loc.start.line ++ ")")
+
+                ( _, _ ) ->
+                    Err ("Unexpected command on line " ++ String.fromInt lines.start ++ ", only expected to see !respond, !archive, or !trigger.")
 
         -- Ignore!
         Camp.Problem { problem } ->
@@ -350,6 +484,30 @@ convertEmailElement element accum =
 
         Camp.Preformatted { lines } ->
             Err ("Unexpected preformatted section on line " ++ String.fromInt lines.start)
+
+
+convertEmailResponse : List Camp.Element -> Result String (List String)
+convertEmailResponse elems =
+    List.map
+        (\elem ->
+            case elem of
+                Camp.Paragraph { contents } ->
+                    List.map convertMarkup contents |> Result.combine |> Result.map String.concat
+
+                Camp.Command { lines } ->
+                    Err ("Unexpected command on line " ++ String.fromInt lines.start)
+
+                Camp.Problem { problem } ->
+                    Err problem
+
+                Camp.Item { lines } ->
+                    Err ("Unexpected list item on line " ++ String.fromInt lines.start)
+
+                Camp.Preformatted { lines } ->
+                    Err ("Unexpected preformatted section on line " ++ String.fromInt lines.start)
+        )
+        elems
+        |> Result.combine
 
 
 convertMarkup : Camp.Text -> Result String String
