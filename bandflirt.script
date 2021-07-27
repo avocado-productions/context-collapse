@@ -12,32 +12,34 @@
 
 
 # Conversation with A
-! from A |> to Me 
+! email |> from A |> to Me
 
 We gonna jam tomorrow night?
 
-- Andy
+! image "holo-guitar"
+
+ - Andy
 
 ! archive 
     |> triggers "you there?" 
     |> spawns "SPAAAAMMMM 1"
     |> spawns "SPAAAAMMMM 2"
-    |> spawns "SPAAAAMMMM 3" >>
+    |> spawns "SPAAAAMMMM 3"
 
-! [Enthusiastic] |> to A 
+! response [Enthusiastic] |> to A 
     |> triggers "scene 1"
     |> spawns "SPAAAAMMMM 1" >>
 
     Hell yezzzzzz my man.
 
-! [Bored] |> to A 
+! response [Bored] |> to A 
     |> triggers "scene 1"
     |> spawns "SPAAAAMMMM 1" >>
 
     Ugh, I actually had some other plans but they fell through,
     sure why not.
 
-! [Weirdly Polite] |> to A |> to B
+! response [Weirdly Polite] |> to A |> to B
     |> triggers "scene 1"
     |> spawns "SPAAAAMMMM 1" >>
 
@@ -97,7 +99,7 @@ closing.
 Okay - I wanna try recording this time night,
 so make sure to bring the sex.
 
-! trigger -> scene 1 continued
+! trigger "scene 1 continued"
 
 
 ## scene 1 continued

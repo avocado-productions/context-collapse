@@ -74,13 +74,51 @@ drinkupapp =
         |> Contact.full "Drink it All Up!"
 
 
+savealltime : Types.AddressbookEntry
+savealltime =
+    Contact.create
+        |> Contact.email "save@allthe.time"
+        |> Contact.short "Save"
+        |> Contact.full "Time Saver X"
+
+
 starting =
-    [ "convo-ds", "convo-b", "convo-c" ]
+    [ "thingamajig" ]
 
 
 myScript : List Types.ThreadScript
 myScript =
-    [ { id = "convo-ds"
+    [ { id = "thingamajig"
+      , subject = "Inbox Zero Success!"
+      , start = "foo"
+      , scenes =
+            Dict.fromList
+                [ ( "foo"
+                  , { receivedEmail =
+                        { from = savealltime
+                        , to = [ me ]
+                        , contents =
+                            [ "Happy Friday!"
+                            , "You successfully reached Inbox Zero yesterday!"
+                            , "Good luck today - get that to-do list down!"
+                            , "Your friends at TSX"
+                            , ""
+                            , "Get it done with Time Saver X"
+                            ]
+                        }
+                    , actions =
+                        [ Types.Respond
+                            { shortText = "UNSUBSCRIBE "
+                            , email = { from = me, to = [ savealltime ], contents = [ "UNSUBSCRIBE", "", "Also, fuck you guys. Who sends an email saying that you reached inbox zero?" ] }
+                            , next = Nothing
+                            , spawn = [ "convo-ds", "convo-b", "convo-c" ]
+                            }
+                        ]
+                    }
+                  )
+                ]
+      }
+    , { id = "convo-ds"
       , subject = "Drinks tonight?"
       , start = "a-zero"
       , scenes =

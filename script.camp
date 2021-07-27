@@ -1,0 +1,96 @@
+! contact Me "naolin@panopticorp.co"
+    |> full "Naolin Dawson Vega"
+
+! contact Dslist "ds5.social@googlegroups.com"
+
+! contact Advisor "wzhou@uni.edu"
+    |> full "Prof. Wei Zhou"
+    |> short "Zhou"
+
+! contact CollegeFriend "christine@upprcut.com"
+    |> full "Christine Malcom"
+
+! contact A "a@justone.letter"
+    |> full "Andy Aaaaaaa"
+
+! contact B "spam@spamsource.spam"
+    |> full "Spammy McSpamface"
+    |> short "Spam"
+
+
+
+# Conversation with A
+! email |> from A |> to Me 
+
+We gonna jam tomorrow night?
+
+- Andy
+
+! archive 
+    |> triggers "you there?" 
+    |> spawns "SPAAAAMMMM 1"
+    |> spawns "SPAAAAMMMM 2"
+    |> spawns "SPAAAAMMMM 3" >>
+
+! respond [Enthusiastic] |> to A 
+    |> triggers "scene 1"
+    |> spawns "SPAAAAMMMM 1" >>
+
+    Hell yezzzzzz my man.
+
+! respond [Bored] |> to A 
+    |> triggers "scene 1"
+    |> spawns "SPAAAAMMMM 1" >>
+
+    Ugh, I actually had some other plans but they fell through,
+    sure why not.
+
+! respond [Weirdly Polite] |> to A |> to B
+    |> triggers "scene 1"
+    |> spawns "SPAAAAMMMM 1" >>
+
+    Indubitably, my good gentelman!
+
+
+# SPAAAAMMMM 1
+! email |> from B
+
+Spam spam spam
+
+! [Unsubscribe] |> to B >> UNSUBSCRIBE!
+
+
+
+# SPAAAAMMMM 2
+! email |> from B
+
+Spam spam spam
+
+! [Unsubscribe] |> to B >> UNSUBSCRIBE!
+
+
+
+# SPAAAAMMMM 3
+! email |> from B
+
+Spam spam spam
+
+! [Unsubscribe] |> to B >> UNSUBSCRIBE!
+
+
+
+# SPAAAAMMMM 4
+! email |> from B
+
+Spam spam spam
+
+! [Unsubscribe] |> to B >> UNSUBSCRIBE!
+
+
+
+# SPAAAAMMMM 5
+! email |> from B
+
+Spam spam spam
+
+! [Unsubscribe] |> to B >> UNSUBSCRIBE!

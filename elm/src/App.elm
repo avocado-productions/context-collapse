@@ -7,6 +7,7 @@ import Cmd.Extra as Cmd
 import CryptoScript
 import Dict
 import List.Extra as List
+import Parse.Parse as Parse
 import Script as S
 import ScriptTypes as Script
 import Url exposing (Url)
@@ -14,7 +15,7 @@ import Url.Parser exposing ((</>), Parser, s)
 import View
 
 
-main : Program () App.Model App.Msg
+main : Program String App.Model App.Msg
 main =
     Browser.application
         { init = init
@@ -30,9 +31,18 @@ main =
 -- MODEL
 
 
-init : () -> Url -> Key -> ( App.Model, Cmd App.Msg )
-init () url key =
-    S.starting
+init : String -> Url -> Key -> ( App.Model, Cmd App.Msg )
+init scriptStr url key =
+    let
+        parsed =
+            Parse.parse scriptStr
+                |> Result.withDefault
+                    { me = S.me
+                    , script = S.myScript
+                    , starting = S.starting
+                    }
+    in
+    parsed.starting
         |> List.map CryptoScript.hash
         |> List.foldr
             (\scriptId model ->
@@ -57,9 +67,9 @@ init () url key =
             { state = App.InboxOpen
             , blocked = Nothing
             , inbox = []
-            , scripts = S.myScript |> List.map CryptoScript.hashScript
+            , scripts = parsed.script |> List.map CryptoScript.hashScript
             , navKey = key
-            , me = S.me
+            , me = parsed.me
             }
         |> Cmd.with (Nav.pushUrl key "/k/inbox/")
 
@@ -229,7 +239,7 @@ update msg model =
                                 |> Maybe.withDefault
                                     -- Should be impossible to hit the default
                                     { shortText = ""
-                                    , email = { from = S.me, to = [], contents = [] }
+                                    , email = { from = model.me, to = [], contents = [] }
                                     , next = Nothing
                                     , spawn = []
                                     }
