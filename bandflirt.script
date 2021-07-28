@@ -1,14 +1,12 @@
-! contact Me "danny@skynet.productions"
-    |> full "Danny M. Davis"
+! contact Me "naolin@panopticorp.co"
+   |> full "Danny Dawson Vega"
 
 ! contact A "a@justone.letter"
-    |> full "Andy Aaaaaaa"
-    |> short "Andy"
+   |> full "Andy Aaaaaaa"
 
 ! contact B "spam@spamsource.spam"
-    |> full "Spammy McSpamface"
-    |> short "Spam"
-
+   |> full "Spammy McSpamface"
+   |> short "Spam"
 
 
 # Conversation with A
@@ -16,111 +14,60 @@
 
 We gonna jam tomorrow night?
 
-! image "holo-guitar"
-
- - Andy
+- Andy
 
 ! archive 
-    |> triggers "you there?" 
-    |> spawns "SPAAAAMMMM 1"
-    |> spawns "SPAAAAMMMM 2"
-    |> spawns "SPAAAAMMMM 3"
 
-! response [Enthusiastic] |> to A 
-    |> triggers "scene 1"
-    |> spawns "SPAAAAMMMM 1" >>
+! respond [Enthusiastic]
+   |> to A
+   |> triggers "scene 1"
+   |> spawns "SPAAAAMMMM 1" >>
 
-    Hell yezzzzzz my man.
+   Hell yezzzzzz my man.
 
-! response [Bored] |> to A 
-    |> triggers "scene 1"
-    |> spawns "SPAAAAMMMM 1" >>
+! respond [Bored]
+   |> to A
+   |> triggers "scene 1"
+   |> spawns "SPAAAAMMMM 1" >>
 
-    Ugh, I actually had some other plans but they fell through,
-    sure why not.
+   Ugh, I actually had some other plans
+   but they fell through, sure why not.
 
-! response [Weirdly Polite] |> to A |> to B
-    |> triggers "scene 1"
-    |> spawns "SPAAAAMMMM 1" >>
+! respond [Weirdly Polite]
+   |> to A
+   |> to B
+   |> triggers "scene 1"
+   |> spawns "SPAAAAMMMM 1" >>
 
-    Indubitably, my good gentelman!
-
-
-
-## you there?
-! from A |> to Me
-
-Hey Danny, you alive? Wanna get my busy social calendar sorted out
-(_he said, actually wanting to know if he should take another shift
-at work tonight to avoid dying of boredom._)
-
-! archive
-    |> triggers "ghosted"
-    |> spawns "SPAAAAMMMM 4" 
-    |> spawns "SPAAAAMMMM 5" >>
-
-! [Yes] 
-    |> triggers "scene 1"
-    |> spawns "SPAAAMMMM 4" >>
-
-    Oh shit man, I musta deleted yout last message by accident. Yeah,
-    I'll be there.
-
-! [No] 
-    |> triggers "latermaybe"
-    |> spawns "SPAAAMMMM 4" >>
-
-    Nah, I'm not feeling up for music right now.
-
-
-
-## ghosted
-! from A |> to Me
-
-Never heard from you... pretty bummed, are we not good?
-
-Anyway, um... I guess maybe I'm gonna check out for awhile. Let me know
-if you want to make some music, ball's in your court D.
-
-
-## latermaybe
-! from A |> to Me
-
-Happens, thanks for the heads up. It worked out, though, Jenny really needed
-another pair of hands tonight.
-
-If you end up deciding your up for a low-key drink, I'll be at the bar 'till
-closing.
-
+   Indubitably, my good gentelman!
 
 ## scene 1
-! from A |> to Me
+! email |> from A |> to Me
 
 Okay - I wanna try recording this time night,
 so make sure to bring the sex.
 
 ! trigger "scene 1 continued"
 
-
 ## scene 1 continued
-! from A |> to Me
+! email |> from A |> to Me
 
 Oh my god I obviously meant "you should bring the **sax**," I'm so
 embarassed, jesus!
 
-! [Weird] |> to A 
+! respond [Weird] |> to A 
     |> triggers "scene 3"
     |> spawns "SPAAAAMMMM 5" >>
 
     Yeah wtf mate.
 
-! [Whatever] |> to A
+! respond [Whatever] |> to A
     |> triggers "scene 3"
     |> spawns "SPAAAAMMMM 5" >>
 
     Hahaha damn you autocorrect, right?
 
-! [Flirt] |> to A 
+! respond [Flirt] |> to A 
     |> triggers "scene 4"
     |> spawns "SPAAAAMMMM 5" >>
 
@@ -131,24 +78,23 @@ embarassed, jesus!
 
 
 ## scene 3
-! from A |> to Me
+! email |> from A |> to Me
 
 Good practice! Same time next week?
 
 ! archive
 
-! [Yes] |> to A >>
+! respond [Yes] |> to A >>
     Sure thing! Unless you've got a night off this weekend
     and want to try to record that tricky bridge again while
     it's still fresh on our minds.
 
-! [Maybe] |> to A >>
+! respond [Maybe] |> to A >>
     I'll have to see, next week's busy. Thanks for being flexible
     with my flaky ass, as always.
 
-
 ## scene 4
-! from A |> to Me
+! email |> from A |> to Me
 
 Good... uh... practice, I guess?
 
@@ -156,7 +102,7 @@ See you tonight? 😘
 
 ! archive
 
-! [Flirt More] |> to A >>
+! respond [Flirt More] |> to A >>
     Couldn't possibly know what you're talking about there 😇
 
      - Danny
@@ -164,46 +110,57 @@ See you tonight? 😘
     P.S. 💖
 
 
-
 # SPAAAAMMMM 1
-! from B
+! email |> from B
 
 Spam spam spam
 
-! [Unsubscribe] |> to B >> UNSUBSCRIBE!
+! archive
+! respond [Unsubscribe]
+   |> to B >>
 
-
+   UNSUBSCRIBE!
 
 # SPAAAAMMMM 2
-! from B
+! email |> from B
 
 Spam spam spam
 
-! [Unsubscribe] |> to B >> UNSUBSCRIBE!
+! archive
+! respond [Unsubscribe]
+   |> to B >>
 
-
+   UNSUBSCRIBE!
 
 # SPAAAAMMMM 3
-! from B
+! email |> from B
 
 Spam spam spam
 
-! [Unsubscribe] |> to B >> UNSUBSCRIBE!
+! archive
+! respond [Unsubscribe]
+   |> to B >>
 
-
+   UNSUBSCRIBE!
 
 # SPAAAAMMMM 4
-! from B
+! email |> from B
 
 Spam spam spam
 
-! [Unsubscribe] |> to B >> UNSUBSCRIBE!
+! archive
+! respond [Unsubscribe]
+   |> to B >>
 
-
+   UNSUBSCRIBE!
 
 # SPAAAAMMMM 5
-! from B
+! email |> from B
 
 Spam spam spam
 
-! [Unsubscribe] |> to B >> UNSUBSCRIBE!
+! archive
+! respond [Unsubscribe]
+   |> to B >>
+
+   UNSUBSCRIBE!
