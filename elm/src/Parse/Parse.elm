@@ -57,7 +57,7 @@ parse str =
             Camperdown.Parse.parse config str
 
         contactinfo =
-            List.map preludeItem prelude
+            List.filterMap preludeItem prelude
                 |> Result.combine
                 |> Result.map Dict.fromList
                 |> Result.andThen
@@ -483,28 +483,33 @@ convertEmailElement me contacts element accum =
             Err ("Unexpected list item on line " ++ String.fromInt lines.start)
 
         Camp.Preformatted { lines } ->
-            Err ("Unexpected preformatted section on line " ++ String.fromInt lines.start)
+            Ok accum
+
+
+
+-- Err ("Unexpected preformatted section on line " ++ String.fromInt lines.start)
 
 
 convertEmailResponse : List Camp.Element -> Result String (List String)
 convertEmailResponse elems =
-    List.map
+    List.filterMap
         (\elem ->
             case elem of
                 Camp.Paragraph { contents } ->
-                    List.map convertMarkup contents |> Result.combine |> Result.map String.concat
+                    Just <| (List.map convertMarkup contents |> Result.combine |> Result.map String.concat)
 
                 Camp.Command { lines } ->
-                    Err ("Unexpected command on line " ++ String.fromInt lines.start)
+                    Just <| Err ("Unexpected command on line " ++ String.fromInt lines.start)
 
                 Camp.Problem { problem } ->
-                    Err problem
+                    Just <| Err problem
 
                 Camp.Item { lines } ->
-                    Err ("Unexpected list item on line " ++ String.fromInt lines.start)
+                    Just <| Err ("Unexpected list item on line " ++ String.fromInt lines.start)
 
                 Camp.Preformatted { lines } ->
-                    Err ("Unexpected preformatted section on line " ++ String.fromInt lines.start)
+                    Nothing
+         -- Err ("Unexpected preformatted section on line " ++ String.fromInt lines.start)
         )
         elems
         |> Result.combine
@@ -526,28 +531,28 @@ convertMarkup element =
             Err (Problem.inlineToString problem |> Loc.value)
 
 
-preludeItem : Camp.Element -> Result String ( String, Script.AddressbookEntry )
+preludeItem : Camp.Element -> Maybe (Result String ( String, Script.AddressbookEntry ))
 preludeItem item =
     case item of
         Camp.Preformatted { lines } ->
-            Err <| "Did not expect preformatted section in the prelude."
+            Nothing
 
         Camp.Item { lines } ->
-            Err <| "Unexpected `:` item on line " ++ String.fromInt lines.start
+            Just <| Err <| "Unexpected `:` item on line " ++ String.fromInt lines.start
 
         Camp.Paragraph _ ->
-            Err <| "Did not expect paragraph text in the prelude."
+            Just <| Err <| "Did not expect paragraph text in the prelude."
 
         Camp.Problem { problem, lines } ->
-            Err <| problem ++ " line " ++ String.fromInt lines.start
+            Just <| Err <| problem ++ " line " ++ String.fromInt lines.start
 
         Camp.Command { command, lines } ->
             case command of
                 ( Just ( _, "contact" ), ( arguments, parameters ) ) ->
-                    contactItem arguments parameters
+                    Just <| contactItem arguments parameters
 
                 _ ->
-                    Err <| "Only expect `!contact` commands in prelude, line " ++ String.fromInt lines.start
+                    Just <| Err <| "Only expect `!contact` commands in prelude, line " ++ String.fromInt lines.start
 
 
 contactItem : List (Loc Camp.Value) -> List (Loc Camp.Parameter) -> Result String ( String, Script.AddressbookEntry )
