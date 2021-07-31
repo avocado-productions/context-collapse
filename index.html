@@ -9,6 +9,12 @@
             </head>
   <body>
     <main></main>
-    <script src="/dist/renderer.js"></script>
+    <script src="dist/avocomm.js"></script>
+	<script>
+		Elm.Controller.init({ 
+			node : document.querySelector('main'), 
+			// If you don't want the game to constantly check whether the script has changed, set flags : null
+			flags : 2000,
+		});
+	</script>
   </body>
-</html>

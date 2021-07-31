@@ -1,6 +1,6 @@
 module View exposing (view)
 
-import AppTypes as App exposing (Msg(..))
+import App as App exposing (Msg(..))
 import Assets
 import Browser exposing (Document)
 import Color
@@ -54,7 +54,7 @@ view model =
             row [ width fill, height fill, spacing 0 ] <|
                 [ -- Left Bar
                   row [ paddingEach { top = UI.externalChromePadding, left = UI.externalChromePadding, right = 0, bottom = 0 }, width <| px UI.leftMenuWidth, height fill ]
-                    [ image [ width <| px UI.logoWidth, height <| px UI.logoHeight, alignTop ] { src = "/assets/avocomm-logo.png", description = "AvoComm webmail client logo" }
+                    [ image [ width <| px UI.logoWidth, height <| px UI.logoHeight, alignTop ] { src = "assets/avocomm-logo.png", description = "AvoComm webmail client logo" }
                     , el [ width fill, height <| px UI.logoHeight, alignTop, Font.size 54, UI.logoFont ] (el [ alignBottom ] <| text "voComm")
                     ]
                 , -- Main panel

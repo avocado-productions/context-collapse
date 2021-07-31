@@ -12,6 +12,7 @@ me =
         |> Contact.short "Naolin"
         |> Contact.full "Naolin Dawson Vega"
 
+
 sam : Types.AddressbookEntry
 sam =
     Contact.create
@@ -19,12 +20,14 @@ sam =
         |> Contact.short "Sam"
         |> Contact.full "Samantha Quimby"
 
+
 erik : Types.AddressbookEntry
 erik =
     Contact.create
         |> Contact.email "dragonfire3489@gmail.com"
         |> Contact.short "Erik"
         |> Contact.full "Erik Jaffe"
+
 
 dslist : Types.AddressbookEntry
 dslist =
@@ -74,13 +77,51 @@ drinkupapp =
         |> Contact.full "Drink it All Up!"
 
 
+savealltime : Types.AddressbookEntry
+savealltime =
+    Contact.create
+        |> Contact.email "save@allthe.time"
+        |> Contact.short "Save"
+        |> Contact.full "Time Saver X"
+
+
 starting =
-    [ "convo-ds", "convo-b", "convo-c" ]
+    [ "thingamajig" ]
 
 
 myScript : List Types.ThreadScript
 myScript =
-    [ { id = "convo-ds"
+    [ { id = "thingamajig"
+      , subject = "Inbox Zero Success!"
+      , start = "foo"
+      , scenes =
+            Dict.fromList
+                [ ( "foo"
+                  , { receivedEmail =
+                        { from = savealltime
+                        , to = [ me ]
+                        , contents =
+                            [ "Happy Friday!"
+                            , "You successfully reached Inbox Zero yesterday!"
+                            , "Good luck today - get that to-do list down!"
+                            , "Your friends at TSX"
+                            , ""
+                            , "Get it done with Time Saver X"
+                            ]
+                        }
+                    , actions =
+                        [ Types.Respond
+                            { shortText = "UNSUBSCRIBE "
+                            , email = { from = me, to = [ savealltime ], contents = [ "UNSUBSCRIBE", "", "Also, fuck you guys. Who sends an email saying that you reached inbox zero?" ] }
+                            , next = Nothing
+                            , spawn = [ "convo-ds", "convo-b", "convo-c" ]
+                            }
+                        ]
+                    }
+                  )
+                ]
+      }
+    , { id = "convo-ds"
       , subject = "Drinks tonight?"
       , start = "a-zero"
       , scenes =
@@ -121,10 +162,11 @@ myScript =
                   , { receivedEmail =
                         { from = erik
                         , to = [ me, dslist ]
-                        , contents = [ 
-                          """ I'd be up for trying something new! Standard
+                        , contents =
+                            [ """ I'd be up for trying something new! Standard
                           meeting time?
-                            - Edog """ ]
+                            - Edog """
+                            ]
                         }
                     , actions =
                         [ Types.Respond
@@ -153,14 +195,14 @@ myScript =
                         ]
                     }
                   )
-                , ("a-sam-in",
-                    { receivedEmail =
+                , ( "a-sam-in"
+                  , { receivedEmail =
                         { from = sam
-                        , to = [dslist, me]
+                        , to = [ dslist, me ]
                         , contents = [ """Oh if we're not meeting til 9 I can
                         totally be there ^.^""" ]
                         }
-                        , actions = [ Types.Archive ] -- XXX - continue with a-three
+                    , actions = [ Types.Archive ] -- XXX - continue with a-three
                     }
                   )
                 , ( "a-two"
@@ -169,18 +211,19 @@ myScript =
                         , to = [ dslist, me ]
                         , contents = [ "Got a table in the back!" ]
                         }
-                        -- , actions = [ Types.Archive ]
-                        , actions = [ Types.Immediate "sam-cant-make-it" ]
+
+                    -- , actions = [ Types.Archive ]
+                    , actions = [ Types.Immediate "sam-cant-make-it" ]
                     }
                   )
                 , ( "sam-cant-make-it"
-                    , { receivedEmail = 
+                  , { receivedEmail =
                         { from = sam
-                        , to = [dslist, me]
-                        , contents = [ "sry can't make it :("]
+                        , to = [ dslist, me ]
+                        , contents = [ "sry can't make it :(" ]
                         }
-                        , actions = [ Types.Archive] 
-                    } 
+                    , actions = [ Types.Archive ]
+                    }
                   )
                 , ( "a-three"
                   , { receivedEmail =
@@ -192,9 +235,12 @@ myScript =
                     , actions = [ Types.Archive ] -- XXX continue
                     }
                   )
-                ] --- End of DS thread emails
-      } --- End of DS thread convo
+                ]
 
+      --- End of DS thread emails
+      }
+
+    --- End of DS thread convo
     , { id = "convo-b"
       , subject = "Your thesis progress"
       , start = "b-1"
@@ -256,26 +302,26 @@ myScript =
                             , email =
                                 { from = me
                                 , to = [ advisor ]
-                                , contents = [ 
-                                  """Well, hmm. I just worked out all my
+                                , contents =
+                                    [ """Well, hmm. I just worked out all my
                                     benchmark examples without it, so I
                                     can't really remember why I needed it.
                                     It might have been to handle some
                                     corner case that disappeared with the
                                     2-context redesign. Does the proof go
-                                    through without it?""" 
-                                  ]
+                                    through without it?"""
+                                    ]
                                 }
                             , next = Just "b-3"
                             , spawn = []
-                            },
-                          Types.Respond
+                            }
+                        , Types.Respond
                             { shortText = "It's really important"
                             , email =
                                 { from = me
                                 , to = [ advisor ]
-                                , contents = [ 
-                                    """Oh, wait, I remember... without that
+                                , contents =
+                                    [ """Oh, wait, I remember... without that
                                     side condition, the whole logic is
                                     degenerate. It lets you prove A from
                                     \\circ{A}, basically, so the monad does
@@ -308,23 +354,24 @@ myScript =
                             , email =
                                 { from = me
                                 , to = [ advisor ]
-                                , contents = [ """Alright, sure. Of course. 
-                                  I'll let you know as soon as I can.""" 
-                                  ]
+                                , contents =
+                                    [ """Alright, sure. Of course. 
+                                  I'll let you know as soon as I can."""
+                                    ]
                                 }
                             , next = Just "b-5"
                             , spawn = []
-                            },
-                          Types.Respond
+                            }
+                        , Types.Respond
                             { shortText = "No, sorry"
                             , email =
-                              { from = me
-                              , to = [ advisor ]
-                              , contents = [
-                                """I can't tonight. Could we meet tomorrow
+                                { from = me
+                                , to = [ advisor ]
+                                , contents =
+                                    [ """I can't tonight. Could we meet tomorrow
                                 morning and talk it through?"""
-                                ]
-                              }
+                                    ]
+                                }
                             , next = Just "b-4"
                             , spawn = []
                             }
@@ -347,10 +394,10 @@ myScript =
                   )
                 , ( "b-5"
                   , { receivedEmail =
-                      { from = advisor
-                      , to = [ me ]
-                      , contents = [ """Great. Thx""" ]
-                      }
+                        { from = advisor
+                        , to = [ me ]
+                        , contents = [ """Great. Thx""" ]
+                        }
                     , actions = [ Types.Archive ]
                     }
                   )
@@ -379,18 +426,18 @@ myScript =
                             , email =
                                 { from = me
                                 , to = [ college_friend ]
-                                , contents = [ 
-                                    "I'm looking forward to it too, boo!",
-                                    """Uhhhh <_< don't you know never to ask a grad student when
-                                    they're finishing their thesis? ^_^;""",
-                                    """I guess it's going alright. Honestly, my advisor
+                                , contents =
+                                    [ "I'm looking forward to it too, boo!"
+                                    , """Uhhhh <_< don't you know never to ask a grad student when
+                                    they're finishing their thesis? ^_^;"""
+                                    , """I guess it's going alright. Honestly, my advisor
                                     really stresses me out, and sometimes I just want to
                                     do a job where I can make progress every day and see
                                     more immediate gratification, you
-                                    know?""",
-                                    "Talk soon,",
-                                    "Naolin"
-                                  ]
+                                    know?"""
+                                    , "Talk soon,"
+                                    , "Naolin"
+                                    ]
                                 }
                             , next = Just "c-2"
                             , spawn = []
@@ -418,24 +465,25 @@ myScript =
                                 }
                             , next = Just "c-3"
                             , spawn = []
-                            },
-                          Types.Respond
+                            }
+                        , Types.Respond
                             { shortText = "Nah"
-                              , email =
-                                { from = me,
-                                  to = [ college_friend ],
-                                  contents = [ """No thanks. I want to focus
+                            , email =
+                                { from = me
+                                , to = [ college_friend ]
+                                , contents = [ """No thanks. I want to focus
                                   on finishing up and probably apply for
                                   faculty jobs first, as unlikely as it
                                   seems that I'll ever get one lolsob...
                                   but I'll let you know if that doesn't pan
-                                      out."""]
-
+                                      out.""" ]
                                 }
-                              , next = Just "c-4"
-                              , spawn = []
+                            , next = Just "c-4"
+                            , spawn = []
                             }
-                        ] -- End response options for c-2
+                        ]
+
+                    -- End response options for c-2
                     }
                   )
                 , ( "c-3"

@@ -2,15 +2,41 @@
 
 ## Instructions to build and run
 
-Make sure you have npm installed, then from the root directory:
+If you downloaded a release, the easiest way to begin is by starting
+a webserver. 
 
-    $ npm i
-    $ npm i elm
-    $ npm start
+    tar xzvf context-collapse-prebuilt.tgz
+    cd context-collapse
+    python -m SimpleHTTPServer 8070
+
+Then go to http://localhost:8070/ in your browser.
+
+You can edit your game by modifying the file `script.camp`
+in the `context-collapse` directory; the game will automatically
+refresh when you change the script.
+
+## Build
+
+To build the engine from source, you need the 
+[Elm compiler](https://guide.elm-lang.org/install/elm.html)
+and the Camperdown repository (currently private).
+
+    git clone -b contextcollapse git@github.com:brilliantorg/camperdown.git
+    git clone -b parser git@github.com:avocado-productions/context-collapse
+    cd context-collapse
+    elm make src/Controller.elm --output=dist/avocomm.js --optimize
+
+For an optimized build, replace `--optimize` in the last command with `--debug`.
 
 You'll need to have a stable internet connection in order for the elm build
 script to download all its dependencies and compile successfully.
 
-The project will tell you what port it's running on (e.g.
-http://localhost:8888/). Once compilation succeeds, you can then navigate
-there in your browser to see the project.
+## Creating a release
+
+After doing the build process above, go into the parent directory and run
+a `tar` command to collect the necessary files.
+
+    cd ..
+    tar czvf context-collapse/context-collapse-prebuilt.tgz -T context-collapse/manifest.txt
+
+

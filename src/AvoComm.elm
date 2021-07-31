@@ -1,38 +1,23 @@
-module App exposing (main)
+module AvoComm exposing (..)
 
-import AppTypes as App
-import Browser
+import App as App
 import Browser.Navigation as Nav exposing (Key)
 import Cmd.Extra as Cmd
 import CryptoScript
 import Dict
 import List.Extra as List
-import Script as S
 import ScriptTypes as Script
 import Url exposing (Url)
-import Url.Parser exposing ((</>), Parser, s)
-import View
+import Url.Parser exposing ((</>), s)
 
 
-main : Program () App.Model App.Msg
-main =
-    Browser.application
-        { init = init
-        , view = View.view
-        , update = update
-        , subscriptions = \_ -> Sub.none
-        , onUrlRequest = App.OnUrlRequest
-        , onUrlChange = App.OnUrlChange
-        }
-
-
-
--- MODEL
-
-
-init : () -> Url -> Key -> ( App.Model, Cmd App.Msg )
-init () url key =
-    S.starting
+init :
+    { me : Script.AddressbookEntry, script : List Script.ThreadScript, starting : List String }
+    -> Url
+    -> Key
+    -> ( App.Model, Cmd App.Msg )
+init parsed url key =
+    parsed.starting
         |> List.map CryptoScript.hash
         |> List.foldr
             (\scriptId model ->
@@ -57,11 +42,11 @@ init () url key =
             { state = App.InboxOpen
             , blocked = Nothing
             , inbox = []
-            , scripts = S.myScript |> List.map CryptoScript.hashScript
+            , scripts = parsed.script |> List.map CryptoScript.hashScript
             , navKey = key
-            , me = S.me
+            , me = parsed.me
             }
-        |> Cmd.with (Nav.pushUrl key "/k/inbox/")
+        |> Cmd.with (Nav.pushUrl key "#/k/inbox/")
 
 
 getScript : String -> App.Model -> Script.ThreadScript
@@ -101,7 +86,7 @@ update msg model =
             model |> Cmd.with (Nav.back model.navKey 1)
 
         App.NavPushUrl url ->
-            model |> Cmd.with (Nav.pushUrl model.navKey url)
+            model |> Cmd.with (Nav.pushUrl model.navKey ("#" ++ url))
 
         App.OpenInbox ->
             { model | state = App.InboxOpen } |> Cmd.pure
@@ -200,7 +185,7 @@ update msg model =
                         , state = App.InboxOpen
                         , blocked = Nothing -- inbox has been advanced
                     }
-                        |> Cmd.with (Nav.pushUrl model.navKey "/k/inbox/")
+                        |> Cmd.with (Nav.pushUrl model.navKey "#/k/inbox/")
 
                 _ ->
                     -- Should be impossible!
@@ -229,7 +214,7 @@ update msg model =
                                 |> Maybe.withDefault
                                     -- Should be impossible to hit the default
                                     { shortText = ""
-                                    , email = { from = S.me, to = [], contents = [] }
+                                    , email = { from = model.me, to = [], contents = [] }
                                     , next = Nothing
                                     , spawn = []
                                     }
@@ -275,62 +260,71 @@ update msg model =
                         , blocked = response.next |> Maybe.map (\blockedNextId -> { scriptId = location.scriptId, next = blockedNextId })
                         , state = App.InboxOpen
                     }
-                        |> Cmd.with (Nav.pushUrl model.navKey "/k/inbox/")
+                        |> Cmd.with (Nav.pushUrl model.navKey "#/k/inbox/")
 
                 _ ->
                     -- Should be impossible!
                     model |> Cmd.pure
 
         App.OnUrlChange url ->
-            if url.path == currentUrl model then
-                model |> Cmd.pure
+            case Maybe.map (String.split "/") url.fragment of
+                Just [ "", "k", "inbox", "" ] ->
+                    model |> Cmd.with (Cmd.perform App.OpenInbox)
 
-            else
-                case Url.Parser.parse (parseUrl model) url of
-                    Nothing ->
-                        model |> Cmd.with (Cmd.perform App.OpenInbox)
+                Just [ "", "k", "inbox", id ] ->
+                    List.indexedMap
+                        (\inboxIndex { scriptId } ->
+                            if id == scriptId then
+                                Just (Cmd.perform (App.OpenThread { scriptId = scriptId, inboxIndex = inboxIndex }))
 
-                    Just route ->
-                        model |> Cmd.with (Cmd.perform route)
+                            else
+                                Nothing
+                        )
+                        model.inbox
+                        |> List.filterMap identity
+                        |> Cmd.batch
+                        |> Tuple.pair model
 
-        App.OnUrlRequest url ->
-            let
-                _ =
-                    Debug.log "urlRequest" url
-            in
+                _ ->
+                    model |> Cmd.with (Cmd.perform App.OpenInbox)
+
+        App.OnUrlRequest _ ->
             model |> Cmd.pure
 
 
-currentUrl : App.Model -> String
-currentUrl model =
-    case model.state of
-        App.InboxOpen ->
-            "/k/inbox/"
 
-        App.ThreadOpen { location } ->
-            "/k/inbox/" ++ location.scriptId
+{- }
+   currentUrl : App.Model -> String
+   currentUrl model =
+       case model.state of
+           App.InboxOpen ->
+               "/k/inbox/"
+
+           App.ThreadOpen { location } ->
+               "/k/inbox/" ++ location.scriptId
 
 
-parseUrl : App.Model -> Parser (App.Msg -> a) a
-parseUrl model =
-    let
-        parseThreadId id =
-            List.indexedMap
-                (\inboxIndex { scriptId } ->
-                    if id == scriptId then
-                        Just <| App.OpenThread { scriptId = scriptId, inboxIndex = inboxIndex }
+   parseUrl : App.Model -> Parser (App.Msg -> a) a
+   parseUrl model =
+       let
+           parseThreadId id =
+               List.indexedMap
+                   (\inboxIndex { scriptId } ->
+                       if id == scriptId then
+                           Just <| App.OpenThread { scriptId = scriptId, inboxIndex = inboxIndex }
 
-                    else
-                        Nothing
-                )
-                model.inbox
-                |> List.filterMap identity
-                |> List.head
-    in
-    Url.Parser.oneOf
-        [ s "k" </> s "inbox" </> Url.Parser.map App.OpenInbox Url.Parser.top
-        , s "k" </> s "inbox" </> Url.Parser.custom "THREAD" parseThreadId
-        ]
+                       else
+                           Nothing
+                   )
+                   model.inbox
+                   |> List.filterMap identity
+                   |> List.head
+       in
+       Url.Parser.oneOf
+           [ s "k" </> s "inbox" </> Url.Parser.map App.OpenInbox Url.Parser.top
+           , s "k" </> s "inbox" </> Url.Parser.custom "THREAD" parseThreadId
+           ]
+-}
 
 
 advanceInbox : App.Model -> List App.ActiveThread -> List App.ActiveThread
