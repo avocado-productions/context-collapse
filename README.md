@@ -1,44 +1,42 @@
 # Context Collapse
 
+## Instructions to build and run
+
+If you downloaded a release, the easiest way to begin is by starting
+a webserver. 
+
+    tar xzvf context-collapse-prebuilt.tgz
+    cd context-collapse
+    python -m SimpleHTTPServer 8070
+
+Then go to http://localhost:8070/ in your browser.
+
+You can edit your game by modifying the file `script.camp`
+in the `context-collapse` directory; the game will automatically
+refresh when you change the script.
+
 ## Build
 
-If you checked Context Collapse out of the repo, you'll need to compile the 
-engine. This requires the [Elm compiler](https://guide.elm-lang.org/install/elm.html).
+To build the engine from source, you need the 
+[Elm compiler](https://guide.elm-lang.org/install/elm.html)
+and the Camperdown repository (currently private).
 
-Optimized build:
-
+    git clone -b contextcollapse git@github.com:brilliantorg/camperdown.git
+    git clone -b parser git@github.com:avocado-productions/context-collapse
     cd context-collapse
     elm make src/Controller.elm --output=dist/avocomm.js --optimize
 
-Debug build:
-
-    cd context-collapse
-    elm make src/Controller.elm --output=dist/avocomm.js --debug
+For an optimized build, replace `--optimize` in the last command with `--debug`.
 
 You'll need to have a stable internet connection in order for the elm build
 script to download all its dependencies and compile successfully.
 
+## Creating a release
 
-## Instructions to build and run
+After doing the build process above, go into the parent directory and run
+a `tar` command to collect the necessary files.
 
-To play the game, start a webserver and go to http://localhost:8080/
-
-    cd context-collapse
-    python -m SimpleHTTPServer
-
-Or upload the directory to a web server
+    cd ..
+    tar czvf context-collapse/context-collapse-prebuilt.tgz -T context-collapse/manifest.txt
 
 
-
-
-
-Make sure you have npm installed, then from the root directory:
-
-    $ npm i
-    $ npm i elm
-    $ npm start
-
-
-The project will tell you what port it's running on (e.g.
-http://localhost:8888/). Once compilation succeeds, you can then navigate
-there in your browser to see the project.

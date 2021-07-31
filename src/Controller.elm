@@ -68,7 +68,7 @@ pollNow =
 main : Program (Maybe Int) Model Msg
 main =
     Browser.application
-        { init = \freq url key -> ( { url = url, key = key, state = Loading, pollingFrequencyMilliseconds = Debug.log "freq" freq }, pollNow )
+        { init = \freq url key -> ( { url = url, key = key, state = Loading, pollingFrequencyMilliseconds = freq }, pollNow )
         , view =
             \model ->
                 case model.state of
