@@ -1,166 +1,148 @@
-! contact Me "naolin@panopticorp.co"
-   |> full "Danny Dawson Vega"
+! contact Me "naolin@rivendel.edu"
+   |> full "Naolin Dawson Vega"
 
-! contact A "a@justone.letter"
-   |> full "Andy Aaaaaaa"
+! contact Sam "coolsam@gmail.com"
+   |> full "Samantha Quimby"
+   |> short "Sam"
 
-! contact B "spam@spamsource.spam"
-   |> full "Spammy McSpamface"
-   |> short "Spam"
+! contact Erik "dragonfire3489@gmail.com"
+   |> full "Erik Jaffe"
 
+! contact dslist "ds5.social@googlegroups.com"
+   |> full "The DS 5 Mailing List"
+   |> short "DS 5"
 
-# Conversation with A
-! email |> from A |> to Me
+! contact advisor "wzhou@rivendel.edu"
+   |> full "Prof. Wei Zhou"
+   |> short "Wei Zhou"
 
-We gonna jam tomorrow night?
+! contact college_friend "christine@upprcut.com"
+   |> full "Christine Malcolm"
 
-- Andy
+! contact ds "info@downtownsouth.com"
+   |> full "Downtown South Bar & Grille"
 
-! archive 
+! contact apero "cheers@aperodining.com"
+   |> full "Apero"
 
-! respond [Enthusiastic]
-   |> to A
-   |> triggers "scene 1"
-   |> spawns "SPAAAAMMMM 1" >>
+! contact drinkupapp "email@drinkitallup.com"
+   |> full "Drink it All Up!"
 
-   Hell yezzzzzz my man.
+# Drinks tonight?
+! email |> from Erik |> to dslist
 
-! respond [Bored]
-   |> to A
-   |> triggers "scene 1"
-   |> spawns "SPAAAAMMMM 1" >>
+Do either of you want to grab a drink tonight?
 
-   Ugh, I actually had some other plans
-   but they fell through, sure why not.
+! respond [Meet somewhere closer?]
+   |> to Erik
+   |> to dslist 
+   |> triggers "a-one"
+   |> spawns "Apero Grand Opening: Next Thursday" >>
 
-! respond [Weirdly Polite]
-   |> to A
-   |> to B
-   |> triggers "scene 1"
-   |> spawns "SPAAAAMMMM 1" >>
+   Could we meet somewhere closer to my
+   apartment? There's a new bar called Apero that just
+   opened up down the street.
 
-   Indubitably, my good gentelman!
+! respond [I'm in]
+   |> to Erik
+   |> to dslist
+   |> triggers "a-two"
+   |> spawns "ds-spam"
+   |> spawns "app-spam" >>
 
-## scene 1
-! email |> from A |> to Me
+   Save me a seat!
 
-Okay - I wanna try recording this time night,
-so make sure to bring the sex.
+## a-one
+! email |> from Erik |> to Me |> to dslist
 
-! trigger "scene 1 continued"
+I'd be up for trying something new! Standard
+meeting time?
 
-## scene 1 continued
-! email |> from A |> to Me
+ - Edog
 
-Oh my god I obviously meant "you should bring the **sax**," I'm so
-embarassed, jesus!
+! respond [Yeah, 7:30]
+   |> to Erik
+   |> to dslist
+   |> triggers "a-two" >>
 
-! respond [Weird] |> to A 
-    |> triggers "scene 3"
-    |> spawns "SPAAAAMMMM 5" >>
+   Sure, see you at 7:30
 
-    Yeah wtf mate.
+! respond [Later, 9pm]
+   |> to Erik
+   |> to dslist
+   |> triggers "a-sam-in" >>
 
-! respond [Whatever] |> to A
-    |> triggers "scene 3"
-    |> spawns "SPAAAAMMMM 5" >>
+   Um actually I need to
+   finish something for my advisor first, so I
+   can't be there til 9pm. The rest of you can meet
+   earlier though.
 
-    Hahaha damn you autocorrect, right?
+## a-sam-in
+! email |> from Sam |> to dslist |> to Me
 
-! respond [Flirt] |> to A 
-    |> triggers "scene 4"
-    |> spawns "SPAAAAMMMM 5" >>
+Oh if we're not meeting til 9 I can totally be there ^.^
 
-    Oh shoot I was all super for the best band practice
-    ever after the first email.
+! respond [We're here] 
+   |> to Sam 
+   |> triggers "a-three" >>
 
-    Just kidding... unless... 👉👈
+   We're here, where are you?
 
+## a-two
+! email |> from Erik |> to dslist |> to Me
 
-## scene 3
-! email |> from A |> to Me
+Got a table in the back!
 
-Good practice! Same time next week?
+! trigger "sam-cant-make-it"
+
+## sam-cant-make-it
+! email |> from Sam |> to Erik |> to dslist
+
+sry can't make it :(
+
+! archive
+
+## a-three
+! email |> from Sam |> to Me 
+
+You make it home ok?? You were pretty out of it.
 
 ! archive
 
-! respond [Yes] |> to A >>
-    Sure thing! Unless you've got a night off this weekend
-    and want to try to record that tricky bridge again while
-    it's still fresh on our minds.
 
-! respond [Maybe] |> to A >>
-    I'll have to see, next week's busy. Thanks for being flexible
-    with my flaky ass, as always.
+# Your Thesis Progress
+! email |> from advisor |> to Me
 
-## scene 4
-! email |> from A |> to Me
+Naolin
 
-Good... uh... practice, I guess?
+I had some questions about this last chapter you sent
+me. I couldn't find the 'Lemma 4.8' you referenced in your
+proof of cut elimination, and it seems critical to making
+the whole thing hang together. Actually, I'm not sure your
+logic admits cut at all. Please get back to me to address
+this urgent matter.
 
-See you tonight? 😘
+Prof. Zhou
 
-! archive
+# Apero Grand Opening: Next Thursday
+! email |> from apero |> to Me
 
-! respond [Flirt More] |> to A >>
-    Couldn't possibly know what you're talking about there 😇
+Dear loyal early customer!
 
-     - Danny
+Here at Apero, we're been excited by the early response 
+we've gotten during our "soft-open" period this month. We wanted to
+let all of our first fans know that our official Grand Opening party
+is happening soon: next Thursday we'll not just be open, but we'll
+be open with bells on!
 
-    P.S. 💖
+Come on down in your fanciest tuxedo (or your nicest t-shirt and
+ripped jeans) for
+drink specials, 3-for-1 appetizers, and a grand old time at our grand
+opening. Or come on by sooner: we're exited to see you anytime, and
+you've clearly figured out that we're here without a grand opening!
 
+Your favorite terribly-kept neighborhood boozy secret,
 
-# SPAAAAMMMM 1
-! email |> from B
+Apero 
 
-Spam spam spam
-
-! archive
-! respond [Unsubscribe]
-   |> to B >>
-
-   UNSUBSCRIBE!
-
-# SPAAAAMMMM 2
-! email |> from B
-
-Spam spam spam
-
-! archive
-! respond [Unsubscribe]
-   |> to B >>
-
-   UNSUBSCRIBE!
-
-# SPAAAAMMMM 3
-! email |> from B
-
-Spam spam spam
-
-! archive
-! respond [Unsubscribe]
-   |> to B >>
-
-   UNSUBSCRIBE!
-
-# SPAAAAMMMM 4
-! email |> from B
-
-Spam spam spam
-
-! archive
-! respond [Unsubscribe]
-   |> to B >>
-
-   UNSUBSCRIBE!
-
-# SPAAAAMMMM 5
-! email |> from B
-
-Spam spam spam
-
-! archive
-! respond [Unsubscribe]
-   |> to B >>
-
-   UNSUBSCRIBE!
+# Thanks for downloading Drink.up

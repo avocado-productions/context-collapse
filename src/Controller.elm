@@ -138,7 +138,39 @@ main =
                         { title = "Error decoding flags", body = [ Html.text msg ] }
 
                     ParseError { msg, source } ->
-                        { title = "Could not parse script", body = [ Html.text msg, Html.text source ] }
+                        { title = "Could not parse script"
+                        , body =
+                            [ Html.div
+                                []
+                                [ Html.div
+                                    [ Html.Attributes.style "width" "600px"
+                                    , Html.Attributes.style "background-color" "rgb(252, 196, 192)"
+                                    , Html.Attributes.style "border-color" "rgb(201, 117, 111)"
+                                    , Html.Attributes.style "border-width" "1px"
+                                    , Html.Attributes.style "border-style" "solid"
+                                    , Html.Attributes.style "border-radius" "6px"
+                                    , Html.Attributes.style "padding" "20px"
+                                    , Html.Attributes.style "margin-left" "auto"
+                                    , Html.Attributes.style "margin-right" "auto"
+                                    , Html.Attributes.style "margin-top" "50px"
+                                    , Html.Attributes.style "margin-bottom" "30px"
+                                    , Html.Attributes.style "font-family" "monospace"
+                                    ]
+                                    [ Html.text msg ]
+                                , Html.div
+                                    [ Html.Attributes.style "width" "600px"
+                                    , Html.Attributes.style "border-color" "rgb(200, 210, 220)"
+                                    , Html.Attributes.style "border-width" "1px"
+                                    , Html.Attributes.style "border-style" "solid"
+                                    , Html.Attributes.style "border-radius" "6px"
+                                    , Html.Attributes.style "padding" "20px"
+                                    , Html.Attributes.style "margin" "auto"
+                                    ]
+                                    [ Html.pre [] [ Html.text source ]
+                                    ]
+                                ]
+                            ]
+                        }
 
                     AvoCommModel { avoCommModel } ->
                         let
