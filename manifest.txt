@@ -1,6 +1,6 @@
 context-collapse/assets/avocomm-logo.png
 context-collapse/dist/avocomm.js
 context-collapse/index.html
-context-collapse/run.sh
 context-collapse/script.camp
+context-collapse/server.py
 context-collapse/README.md
