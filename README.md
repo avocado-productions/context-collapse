@@ -1,6 +1,6 @@
 # Context Collapse
 
-## Instructions to build and run
+## Running the engine
 
 If you downloaded a release, the easiest way to begin is by starting
 a webserver. 

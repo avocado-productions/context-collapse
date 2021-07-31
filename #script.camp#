@@ -2,7 +2,7 @@
    |> full "Danny Dawson Vega"
 
 ! contact A "a@justone.letter"
-   |> full "Andy Aaaaaaa"
+   |> full "Andy A"
 
 ! contact B "spam@spamsource.spam"
    |> full "Spammy McSpamface"

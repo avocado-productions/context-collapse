@@ -1,4 +1,8 @@
 elm-stuff
 dist
+<<<<<<< HEAD
 *.tgz
 *~
+=======
+*.tgz
+>>>>>>> main
