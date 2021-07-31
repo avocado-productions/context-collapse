@@ -2,9 +2,10 @@
 
 ## Running the engine
 
-If you downloaded a release, the easiest way to begin is by starting
-a webserver. 
+The easiest way to get started is to download the latest release and
+use the included script to start a webserver.
 
+    wget https://github.com/avocado-productions/context-collapse/releases/download/v0.0.3/context-collapse-prebuilt.tgz
     tar xzvf context-collapse-prebuilt.tgz
     cd context-collapse
     python3 server.py
@@ -33,8 +34,11 @@ script to download all its dependencies and compile successfully.
 
 ## Creating a release
 
-After doing the build process above, go into the parent directory and run
-a `tar` command to collect the necessary files.
+First, modify README.md to target the next release.
+
+Second, run the build process above.
+
+Third, use the following commands to create the prebuilt release:
 
     rm -f context-collapse-prebuilt.tgz
     cd ..
