@@ -6,6 +6,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Cache-Control", "no-cache, must-revalidate, max-age=0")
         http.server.SimpleHTTPRequestHandler.end_headers(self)
 
-print("serving at port", PORT)
+print("serving app at http://localhost:" + str(PORT) + "/")
 http.server.HTTPServer(('', PORT), Handler).serve_forever()
 
