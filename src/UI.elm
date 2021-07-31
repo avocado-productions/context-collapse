@@ -18,7 +18,7 @@ leftMenuWidth =
 
 logoWidth : Int
 logoWidth =
-    44
+    30
 
 
 logoHeight : Int
@@ -26,6 +26,7 @@ logoHeight =
     42
 
 
+brandNameWidth : Int
 brandNameWidth =
     leftMenuWidth - logoWidth - 2 * externalChromePadding
 

@@ -68,7 +68,7 @@ pollNow url =
         }
 
 
-decoder : Decoder (Maybe Int, String)
+decoder : Decoder ( Maybe Int, String )
 decoder =
     Decode.map2 Tuple.pair
         (Decode.field "pollingFrequencyInMilliseconds" (Decode.nullable Decode.int))

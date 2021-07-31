@@ -311,18 +311,18 @@ threadFull model { inboxIndex, scriptId } =
 suggestionButton : Bool -> Int -> String -> Element App.Msg
 suggestionButton selected suggestionIndex shortMessage =
     let
-        ( fontColor, backgroundColor ) =
+        ( fontColor, backgroundColor, borderColor ) =
             if selected then
-                ( Color.white, Color.suggestionColor )
+                ( Color.white, Color.suggestionColor, Color.suggestionColor )
 
             else
-                ( Color.suggestionColor, Color.white )
+                ( Color.suggestionColor, Color.white, Color.uiGray )
     in
     el
         [ Font.color fontColor
         , Background.color backgroundColor
         , Events.onClick (App.ToggleSuggestion suggestionIndex)
-        , Border.color Color.suggestionColor
+        , Border.color borderColor
         , Border.solid
         , Border.width 1
         , Border.rounded 5
@@ -373,7 +373,7 @@ viewEmailResponse emailResponse =
                 ]
                 (column [ width fill, spacing 20 ]
                     [ viewResponse "TO:" emailResponse.email.to
-                    , column [ spacing 10 ] (List.map (\par -> paragraph [] [ text par ]) emailResponse.email.contents)
+                    , column [ spacing 10 ] (List.map (\par -> paragraph [ UI.contentFont ] [ text par ]) emailResponse.email.contents)
                     , UI.separator
                     , toolbarButton True "→" "Send" (Just App.SelectSuggestion)
                     ]

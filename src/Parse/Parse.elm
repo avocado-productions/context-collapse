@@ -36,16 +36,16 @@ config =
     , annotationOpts =
         [ { startSymbol = "*", endSymbol = Just "*", commandOccursAfterwards = Never }
         , { startSymbol = "~", endSymbol = Just "~", commandOccursAfterwards = Never }
-        , { startSymbol = "/", endSymbol = Just "/", commandOccursAfterwards = Never }
+        , { startSymbol = "_", endSymbol = Just "_", commandOccursAfterwards = Never }
         , { startSymbol = "\"", endSymbol = Just "\"", commandOccursAfterwards = Never }
         , { startSymbol = "...", endSymbol = Nothing, commandOccursAfterwards = Never }
         , { startSymbol = "---", endSymbol = Nothing, commandOccursAfterwards = Never }
         , { startSymbol = "--", endSymbol = Nothing, commandOccursAfterwards = Never }
         , { startSymbol = "[", endSymbol = Just "]", commandOccursAfterwards = Always }
         ]
-    , annotationFirstChars = Set.fromList [ '*', '/', '"', '[', '.', '-', '~' ]
-    , meaningful = Set.fromList [ '\\', '[', ']', '\n', '.', '-', '`', '*', '/', '"', '~' ]
-    , escapable = Set.fromList [ '\\', '"', '!', '?', '#', '[', ']', '(', ')', '.', '-', '`', '*', '/', '"', '&' ]
+    , annotationFirstChars = Set.fromList [ '*', '_', '"', '[', '.', '-', '~' ]
+    , meaningful = Set.fromList [ '\\', '[', ']', '\n', '.', '-', '`', '*', '_', '"', '~' ]
+    , escapable = Set.fromList [ '\\', '"', '!', '?', '#', '[', ']', '(', ')', '.', '-', '`', '*', '_', '"', '&' ]
     , verbatimMarkers = [ "%" ]
     }
 
