@@ -36,6 +36,7 @@ script to download all its dependencies and compile successfully.
 After doing the build process above, go into the parent directory and run
 a `tar` command to collect the necessary files.
 
+    rm -f context-collapse-prebuilt.tgz
     cd ..
     tar czvf context-collapse/context-collapse-prebuilt.tgz -T context-collapse/manifest.txt
 
