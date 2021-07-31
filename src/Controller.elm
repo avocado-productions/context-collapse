@@ -1,4 +1,4 @@
-module ReloadingApp exposing (..)
+module Controller exposing (..)
 
 import App
 import AvoComm
@@ -18,6 +18,7 @@ import View
 type alias Model =
     { state : State
     , url : Url.Url
+    , pollingFrequencyMilliseconds : Maybe Int
     , key : Browser.Navigation.Key
     }
 
@@ -37,9 +38,14 @@ type Msg
     | Noop
 
 
-pollLater : Cmd Msg
-pollLater =
-    Task.perform Poll (Process.sleep 10000)
+pollLater : Maybe Int -> Cmd Msg
+pollLater pollingFrequencyMilliseconds =
+    case pollingFrequencyMilliseconds of
+        Nothing ->
+            Cmd.none
+
+        Just freq ->
+            Task.perform Poll (Process.sleep (toFloat freq))
 
 
 pollNow : Cmd Msg
@@ -59,10 +65,10 @@ pollNow =
         }
 
 
-main : Program () Model Msg
+main : Program (Maybe Int) Model Msg
 main =
     Browser.application
-        { init = \() url key -> ( { url = url, key = key, state = Loading }, pollLater )
+        { init = \freq url key -> ( { url = url, key = key, state = Loading, pollingFrequencyMilliseconds = Debug.log "freq" freq }, pollNow )
         , view =
             \model ->
                 case model.state of
@@ -75,11 +81,30 @@ main =
                             ]
                         }
 
-                    LoadError error ->
-                        { title = "Connection error", body = [ Html.text (Debug.toString model) ] }
+                    LoadError { error } ->
+                        { title = "Connection error"
+                        , body =
+                            [ Html.text <|
+                                case error of
+                                    Http.Timeout ->
+                                        "I tried to get the script, but the request timed out."
+
+                                    Http.NetworkError ->
+                                        "I tried to get the script, but it seems like the internet disconnected."
+
+                                    Http.BadStatus code ->
+                                        "I tried to get the script, but got an unexpected HTTP status code " ++ String.fromInt code ++ "."
+
+                                    Http.BadBody err ->
+                                        "Bad body: " ++ err
+
+                                    Http.BadUrl err ->
+                                        "Bad url : " ++ err
+                            ]
+                        }
 
                     ParseError { msg, source } ->
-                        { title = "Could not parse script", body = [ Html.text (Debug.toString model) ] }
+                        { title = "Could not parse script", body = [ Html.text msg, Html.text source ] }
 
                     AvoCommModel { avoCommModel } ->
                         let
@@ -94,7 +119,7 @@ main =
                         case model.state of
                             AvoCommModel { source } ->
                                 if newSource == source then
-                                    ( model, pollLater )
+                                    ( model, pollLater model.pollingFrequencyMilliseconds )
 
                                 else
                                     restart model newSource
@@ -105,16 +130,16 @@ main =
                     GotErr error ->
                         case model.state of
                             Loading ->
-                                ( { model | state = LoadError { error = error } }, pollLater )
+                                ( { model | state = LoadError { error = error } }, pollLater model.pollingFrequencyMilliseconds )
 
                             LoadError _ ->
-                                ( { model | state = LoadError { error = error } }, pollLater )
+                                ( { model | state = LoadError { error = error } }, pollLater model.pollingFrequencyMilliseconds )
 
                             ParseError _ ->
-                                ( model, pollLater )
+                                ( model, pollLater model.pollingFrequencyMilliseconds )
 
                             AvoCommModel _ ->
-                                ( model, pollLater )
+                                ( model, pollLater model.pollingFrequencyMilliseconds )
 
                     Poll () ->
                         ( model, pollNow )
@@ -146,13 +171,13 @@ restart model source =
     case Parse.parse source of
         Err err ->
             ( { model | state = ParseError { source = source, msg = err } }
-            , pollLater
+            , pollLater model.pollingFrequencyMilliseconds
             )
 
         Ok script ->
             AvoComm.init script model.url model.key
                 |> (\( avoCommModel, avoCommCmd ) ->
                         ( { model | state = AvoCommModel { source = source, avoCommModel = avoCommModel } }
-                        , Cmd.batch [ Cmd.map AvoCommMsg avoCommCmd, pollLater ]
+                        , Cmd.batch [ Cmd.map AvoCommMsg avoCommCmd, pollLater model.pollingFrequencyMilliseconds ]
                         )
                    )

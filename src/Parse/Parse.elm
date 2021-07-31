@@ -213,7 +213,6 @@ parse str =
         contactinfo
         script
         starting
-        |> Debug.log "wee"
 
 
 type alias ImpliedResource =
