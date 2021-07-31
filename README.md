@@ -7,9 +7,9 @@ a webserver.
 
     tar xzvf context-collapse-prebuilt.tgz
     cd context-collapse
-    python -m SimpleHTTPServer 8070
+    python3 server.py
 
-Then go to http://localhost:8070/ in your browser.
+Then go to http://localhost:8020/ in your browser.
 
 You can edit your game by modifying the file `script.camp`
 in the `context-collapse` directory; the game will automatically
