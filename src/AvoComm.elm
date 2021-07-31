@@ -1,34 +1,14 @@
 module AvoComm exposing (..)
 
-import AppTypes as App
-import Browser
+import App as App
 import Browser.Navigation as Nav exposing (Key)
 import Cmd.Extra as Cmd
 import CryptoScript
 import Dict
 import List.Extra as List
-import Parse.Parse as Parse
-import Script as S
 import ScriptTypes as Script
 import Url exposing (Url)
 import Url.Parser exposing ((</>), Parser, s)
-import View
-
-
-
-{- }
-   main : Program String App.Model App.Msg
-   main =
-       Browser.application
-           { init = init
-           , view = View.view
-           , update = update
-           , subscriptions = \_ -> Sub.none
-           , onUrlRequest = App.OnUrlRequest
-           , onUrlChange = App.OnUrlChange
-           }
--}
--- MODEL
 
 
 init :

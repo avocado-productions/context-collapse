@@ -1,6 +1,6 @@
 module View exposing (view)
 
-import AppTypes as App exposing (Msg(..))
+import App as App exposing (Msg(..))
 import Assets
 import Browser exposing (Document)
 import Color

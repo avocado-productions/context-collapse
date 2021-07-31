@@ -1,4 +1,4 @@
-module AppTypes exposing (ActiveThread, ActiveThreadState(..), InboxState(..), Model, Msg(..), ThreadLocation)
+module App exposing (ActiveThread, ActiveThreadState(..), InboxState(..), Model, Msg(..), ThreadLocation)
 
 {- Types used by the runtime. -}
 
