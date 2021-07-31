@@ -8,7 +8,6 @@ import Dict
 import List.Extra as List
 import ScriptTypes as Script
 import Url exposing (Url)
-import Url.Parser exposing ((</>), s)
 
 
 init :
@@ -16,7 +15,7 @@ init :
     -> Url
     -> Key
     -> ( App.Model, Cmd App.Msg )
-init parsed url key =
+init parsed _ key =
     parsed.starting
         |> List.map CryptoScript.hash
         |> List.foldr
@@ -290,41 +289,6 @@ update msg model =
 
         App.OnUrlRequest _ ->
             model |> Cmd.pure
-
-
-
-{- }
-   currentUrl : App.Model -> String
-   currentUrl model =
-       case model.state of
-           App.InboxOpen ->
-               "/k/inbox/"
-
-           App.ThreadOpen { location } ->
-               "/k/inbox/" ++ location.scriptId
-
-
-   parseUrl : App.Model -> Parser (App.Msg -> a) a
-   parseUrl model =
-       let
-           parseThreadId id =
-               List.indexedMap
-                   (\inboxIndex { scriptId } ->
-                       if id == scriptId then
-                           Just <| App.OpenThread { scriptId = scriptId, inboxIndex = inboxIndex }
-
-                       else
-                           Nothing
-                   )
-                   model.inbox
-                   |> List.filterMap identity
-                   |> List.head
-       in
-       Url.Parser.oneOf
-           [ s "k" </> s "inbox" </> Url.Parser.map App.OpenInbox Url.Parser.top
-           , s "k" </> s "inbox" </> Url.Parser.custom "THREAD" parseThreadId
-           ]
--}
 
 
 advanceInbox : App.Model -> List App.ActiveThread -> List App.ActiveThread

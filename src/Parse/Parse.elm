@@ -405,7 +405,7 @@ convertEmailElement me contacts element accum =
 
         Camp.Command { command, lines, child } ->
             case command of
-                ( Just ( loc, "archive" ), ( [], [] ) ) ->
+                ( Just ( _, "archive" ), ( [], [] ) ) ->
                     {- }
                        case child of
                            Nothing ->
@@ -468,7 +468,7 @@ convertEmailElement me contacts element accum =
                         emailResponse_r
                         (convertActionParameters contacts True params)
 
-                ( Just ( loc, "respond" ), ( _, params ) ) ->
+                ( Just ( loc, "respond" ), _ ) ->
                     Err ("!respond should only have a single argument, markup text in brackets [like this] (line " ++ String.fromInt loc.start.line ++ ")")
 
                 ( _, _ ) ->
@@ -481,12 +481,8 @@ convertEmailElement me contacts element accum =
         Camp.Item { lines } ->
             Err ("Unexpected list item on line " ++ String.fromInt lines.start)
 
-        Camp.Preformatted { lines } ->
+        Camp.Preformatted _ ->
             Ok accum
-
-
-
--- Err ("Unexpected preformatted section on line " ++ String.fromInt lines.start)
 
 
 convertEmailResponse : List Camp.Element -> Result String (List String)
@@ -506,9 +502,8 @@ convertEmailResponse elems =
                 Camp.Item { lines } ->
                     Just <| Err ("Unexpected list item on line " ++ String.fromInt lines.start)
 
-                Camp.Preformatted { lines } ->
+                Camp.Preformatted _ ->
                     Nothing
-         -- Err ("Unexpected preformatted section on line " ++ String.fromInt lines.start)
         )
         elems
         |> Result.combine
@@ -533,7 +528,7 @@ convertMarkup element =
 preludeItem : Camp.Element -> Maybe (Result String ( String, Script.AddressbookEntry ))
 preludeItem item =
     case item of
-        Camp.Preformatted { lines } ->
+        Camp.Preformatted _ ->
             Nothing
 
         Camp.Item { lines } ->

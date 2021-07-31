@@ -189,17 +189,6 @@ threadPreview model inboxIndex { scriptId, contents, state, starred, size } =
 
     else
         let
-            hasRespondAction =
-                List.any
-                    (\action ->
-                        case action of
-                            Script.Respond _ ->
-                                True
-
-                            _ ->
-                                False
-                    )
-
             ( weight, bgColor, important ) =
                 case state of
                     App.Unread { responseOptions } ->
@@ -212,7 +201,6 @@ threadPreview model inboxIndex { scriptId, contents, state, starred, size } =
                         ( Font.regular, Color.uiLightGray, Assets.importantNo )
 
                     App.Archived ->
-                        -- Doesn't matter
                         ( Font.regular, Color.uiLightGray, Assets.importantNo )
 
             location =

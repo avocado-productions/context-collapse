@@ -1,20 +1,28 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="UTF-8">
-    <title>Editor</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=BenchNine:wght@400;700&family=Raleway:wght@400;600&family=Yanone+Kaffeesatz:wght@200;400&display=swap" rel="stylesheet">
-            </head>
-  <body>
-    <main></main>
-    <script src="dist/avocomm.js"></script>
-	<script>
-		Elm.Controller.init({ 
-			node : document.querySelector('main'), 
-			// If you don't want the game to constantly check whether the script has changed, set flags : null
-			flags : 2000,
-		});
-	</script>
-  </body>
+
+<head>
+  <meta charset="UTF-8">
+  <title>Editor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=BenchNine:wght@400;700&family=Raleway:wght@400;600&family=Yanone+Kaffeesatz:wght@200;400&display=swap"
+    rel="stylesheet">
+</head>
+
+<body>
+  <main></main>
+  <script src="dist/avocomm.js"></script>
+  <script>
+    Elm.Controller.init({
+      node: document.querySelector('main'),
+      // If you don't want the game to constantly check whether the script has changed, set flags : null
+      flags: {
+        urlOfScriptFile: "script.camp",
+        // setting this to null disables polling
+        pollingFrequencyInMilliseconds: 2000,
+      },
+    });
+  </script>
+</body>

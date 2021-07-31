@@ -7,6 +7,7 @@ import Browser.Navigation
 import Html
 import Html.Attributes
 import Http
+import Json.Decode as Decode exposing (Decoder)
 import Loading
 import Parse.Parse as Parse
 import Process
@@ -18,13 +19,15 @@ import View
 type alias Model =
     { state : State
     , url : Url.Url
-    , pollingFrequencyMilliseconds : Maybe Int
+    , scriptLocation : String
+    , pollingFrequencyInMilliseconds : Maybe Int
     , key : Browser.Navigation.Key
     }
 
 
 type State
     = Loading
+    | DecodeError { msg : String }
     | LoadError { error : Http.Error }
     | ParseError { msg : String, source : String }
     | AvoCommModel { source : String, avoCommModel : App.Model }
@@ -39,8 +42,8 @@ type Msg
 
 
 pollLater : Maybe Int -> Cmd Msg
-pollLater pollingFrequencyMilliseconds =
-    case pollingFrequencyMilliseconds of
+pollLater pollingFrequencyInMilliseconds =
+    case pollingFrequencyInMilliseconds of
         Nothing ->
             Cmd.none
 
@@ -48,10 +51,10 @@ pollLater pollingFrequencyMilliseconds =
             Task.perform Poll (Process.sleep (toFloat freq))
 
 
-pollNow : Cmd Msg
-pollNow =
+pollNow : String -> Cmd Msg
+pollNow url =
     Http.get
-        { url = "script.camp"
+        { url = url
         , expect =
             Http.expectString
                 (\result ->
@@ -65,10 +68,38 @@ pollNow =
         }
 
 
-main : Program (Maybe Int) Model Msg
+decoder : Decoder (Maybe Int, String)
+decoder =
+    Decode.map2 Tuple.pair
+        (Decode.field "pollingFrequencyInMilliseconds" (Decode.nullable Decode.int))
+        (Decode.field "urlOfScriptFile" Decode.string)
+
+
+main : Program Decode.Value Model Msg
 main =
     Browser.application
-        { init = \freq url key -> ( { url = url, key = key, state = Loading, pollingFrequencyMilliseconds = freq }, pollNow )
+        { init =
+            \flags url key ->
+                case Decode.decodeValue decoder flags of
+                    Ok ( pollingFrequencyInMilliseconds, urlOfScriptFile ) ->
+                        ( { url = url
+                          , key = key
+                          , scriptLocation = urlOfScriptFile
+                          , pollingFrequencyInMilliseconds = pollingFrequencyInMilliseconds
+                          , state = Loading
+                          }
+                        , pollNow urlOfScriptFile
+                        )
+
+                    Err error ->
+                        ( { url = url
+                          , key = key
+                          , scriptLocation = ""
+                          , pollingFrequencyInMilliseconds = Nothing
+                          , state = DecodeError { msg = Decode.errorToString error }
+                          }
+                        , Cmd.none
+                        )
         , view =
             \model ->
                 case model.state of
@@ -103,6 +134,9 @@ main =
                             ]
                         }
 
+                    DecodeError { msg } ->
+                        { title = "Error decoding flags", body = [ Html.text msg ] }
+
                     ParseError { msg, source } ->
                         { title = "Could not parse script", body = [ Html.text msg, Html.text source ] }
 
@@ -119,7 +153,7 @@ main =
                         case model.state of
                             AvoCommModel { source } ->
                                 if newSource == source then
-                                    ( model, pollLater model.pollingFrequencyMilliseconds )
+                                    ( model, pollLater model.pollingFrequencyInMilliseconds )
 
                                 else
                                     restart model newSource
@@ -130,19 +164,22 @@ main =
                     GotErr error ->
                         case model.state of
                             Loading ->
-                                ( { model | state = LoadError { error = error } }, pollLater model.pollingFrequencyMilliseconds )
+                                ( { model | state = LoadError { error = error } }, pollLater model.pollingFrequencyInMilliseconds )
+
+                            DecodeError _ ->
+                                ( model, Cmd.none )
 
                             LoadError _ ->
-                                ( { model | state = LoadError { error = error } }, pollLater model.pollingFrequencyMilliseconds )
+                                ( { model | state = LoadError { error = error } }, pollLater model.pollingFrequencyInMilliseconds )
 
                             ParseError _ ->
-                                ( model, pollLater model.pollingFrequencyMilliseconds )
+                                ( model, pollLater model.pollingFrequencyInMilliseconds )
 
                             AvoCommModel _ ->
-                                ( model, pollLater model.pollingFrequencyMilliseconds )
+                                ( model, pollLater model.pollingFrequencyInMilliseconds )
 
                     Poll () ->
-                        ( model, pollNow )
+                        ( model, pollNow model.scriptLocation )
 
                     AvoCommMsg avoCommMsg ->
                         case model.state of
@@ -171,13 +208,16 @@ restart model source =
     case Parse.parse source of
         Err err ->
             ( { model | state = ParseError { source = source, msg = err } }
-            , pollLater model.pollingFrequencyMilliseconds
+            , pollLater model.pollingFrequencyInMilliseconds
             )
 
         Ok script ->
             AvoComm.init script model.url model.key
                 |> (\( avoCommModel, avoCommCmd ) ->
                         ( { model | state = AvoCommModel { source = source, avoCommModel = avoCommModel } }
-                        , Cmd.batch [ Cmd.map AvoCommMsg avoCommCmd, pollLater model.pollingFrequencyMilliseconds ]
+                        , Cmd.batch
+                            [ Cmd.map AvoCommMsg avoCommCmd
+                            , pollLater model.pollingFrequencyInMilliseconds
+                            ]
                         )
                    )
