@@ -102,6 +102,24 @@ main =
                         )
         , view =
             \model ->
+                let
+                    errorBox msg =
+                        Html.div
+                            [ Html.Attributes.style "width" "600px"
+                            , Html.Attributes.style "background-color" "rgb(252, 196, 192)"
+                            , Html.Attributes.style "border-color" "rgb(201, 117, 111)"
+                            , Html.Attributes.style "border-width" "1px"
+                            , Html.Attributes.style "border-style" "solid"
+                            , Html.Attributes.style "border-radius" "6px"
+                            , Html.Attributes.style "padding" "20px"
+                            , Html.Attributes.style "margin-left" "auto"
+                            , Html.Attributes.style "margin-right" "auto"
+                            , Html.Attributes.style "margin-top" "50px"
+                            , Html.Attributes.style "margin-bottom" "30px"
+                            , Html.Attributes.style "font-family" "monospace"
+                            ]
+                            [ Html.text msg ]
+                in
                 case model.state of
                     Loading ->
                         { title = "Loading..."
@@ -115,7 +133,7 @@ main =
                     LoadError { error } ->
                         { title = "Connection error"
                         , body =
-                            [ Html.text <|
+                            [ errorBox <|
                                 case error of
                                     Http.Timeout ->
                                         "I tried to get the script, but the request timed out."
@@ -135,28 +153,16 @@ main =
                         }
 
                     DecodeError { msg } ->
-                        { title = "Error decoding flags", body = [ Html.text msg ] }
+                        { title = "Error decoding flags"
+                        , body = [ errorBox msg ]
+                        }
 
                     ParseError { msg, source } ->
                         { title = "Could not parse script"
                         , body =
                             [ Html.div
                                 []
-                                [ Html.div
-                                    [ Html.Attributes.style "width" "600px"
-                                    , Html.Attributes.style "background-color" "rgb(252, 196, 192)"
-                                    , Html.Attributes.style "border-color" "rgb(201, 117, 111)"
-                                    , Html.Attributes.style "border-width" "1px"
-                                    , Html.Attributes.style "border-style" "solid"
-                                    , Html.Attributes.style "border-radius" "6px"
-                                    , Html.Attributes.style "padding" "20px"
-                                    , Html.Attributes.style "margin-left" "auto"
-                                    , Html.Attributes.style "margin-right" "auto"
-                                    , Html.Attributes.style "margin-top" "50px"
-                                    , Html.Attributes.style "margin-bottom" "30px"
-                                    , Html.Attributes.style "font-family" "monospace"
-                                    ]
-                                    [ Html.text msg ]
+                                [ errorBox msg
                                 , Html.div
                                     [ Html.Attributes.style "width" "600px"
                                     , Html.Attributes.style "border-color" "rgb(200, 210, 220)"

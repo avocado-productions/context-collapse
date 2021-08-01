@@ -74,13 +74,16 @@ separator =
     el [ height (px 1), Background.color Color.uiGray, width fill ] none
 
 
+uiFont : Element.Attribute msg
 uiFont =
     Font.family [ Font.typeface "BenchNine", Font.sansSerif ]
 
 
+logoFont : Element.Attribute msg
 logoFont =
     Font.family [ Font.typeface "Yanone Kaffeesatz", Font.sansSerif ]
 
 
+contentFont : Element.Attribute msg
 contentFont =
     Font.family [ Font.typeface "Raleway", Font.sansSerif ]
