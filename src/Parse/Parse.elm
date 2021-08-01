@@ -9,9 +9,11 @@ import Camperdown.Problem as Problem
 import Char.Extra as Char
 import Dict exposing (Dict)
 import List.Extra as List
+import Markup exposing (Markup)
 import Maybe.Extra as Maybe
+import Message exposing (Message)
 import Result.Extra as Result
-import ScriptTypes as Script
+import Script exposing (Script)
 import Set
 
 
@@ -50,7 +52,7 @@ config =
     }
 
 
-parse : String -> Result String { me : Script.AddressbookEntry, script : List Script.ThreadScript, starting : List String }
+parse : String -> Result String Script
 parse str =
     let
         { prelude, sections } =
@@ -74,8 +76,8 @@ parse str =
         rawemails =
             contactinfo
                 |> Result.andThen
-                    (\{ me, contacts } ->
-                        List.map (convertSection me contacts) sections
+                    (\{ contacts } ->
+                        List.map (convertSection contacts) sections
                             |> Result.combine
                     )
 
@@ -105,22 +107,22 @@ parse str =
                 |> Result.map (Maybe.map (\{ accum, first, rest } -> List.reverse ({ first = first, rest = List.reverse rest } :: accum)))
                 |> Result.map (Maybe.withDefault [])
 
-        script : Result String (List Script.ThreadScript)
-        script =
-            rawscript
-                |> Result.map
-                    (List.map
-                        (\{ first, rest } ->
-                            { id = Loc.value first.name
-                            , start = ""
-                            , subject = Loc.value first.name
-                            , scenes =
-                                List.foldr (\{ name, scene } -> Dict.insert (Loc.value name) scene)
-                                    (Dict.singleton "" first.scene)
-                                    rest
-                            }
-                        )
+        threads : Result String (List Script.ThreadScript)
+        threads =
+            Result.map
+                (List.map
+                    (\{ first, rest } ->
+                        { id = Loc.value first.name
+                        , start = ""
+                        , subject = Loc.value first.name
+                        , scenes =
+                            List.foldr (\{ name, scene } -> Dict.insert (Loc.value name) scene)
+                                (Dict.singleton "" first.scene)
+                                rest
+                        }
                     )
+                )
+                rawscript
 
         starting : Result String (List String)
         starting =
@@ -204,14 +206,15 @@ parse str =
                 |> Result.map .starting
     in
     Result.map3
-        (\{ me } script_ starting_ ->
-            { me = me
-            , script = script_
+        (\{ contacts, me } threads_ starting_ ->
+            { addressBook = contacts
+            , me = me
+            , threads = threads_
             , starting = starting_
             }
         )
         contactinfo
-        script
+        threads
         starting
 
 
@@ -228,8 +231,8 @@ type alias ConvertedSection =
     }
 
 
-convertSection : Script.AddressbookEntry -> Dict String Script.AddressbookEntry -> Camp.Section -> Result String ConvertedSection
-convertSection me contacts { level, label, contents } =
+convertSection : Dict String Script.AddressbookEntry -> Camp.Section -> Result String ConvertedSection
+convertSection contacts { level, label, contents } =
     (case label of
         Camp.Anonymous line ->
             Err ("Section on line " ++ String.fromInt line ++ " needs to be give a name.")
@@ -261,14 +264,13 @@ convertSection me contacts { level, label, contents } =
                 )
                     |> Result.andThen
                         (\( { from, to }, rest ) ->
-                            rest
-                                |> resultFold (convertEmailElement me contacts) { from = from, to = to, email = [], actions = [], scenes = [], threads = [] }
+                            rest |> resultFold (convertEmailElement contacts) { from = from, to = to, email = [], actions = [], scenes = [], threads = [] }
                         )
                     |> Result.map
                         (\{ from, to, email, actions, scenes, threads } ->
                             { level = level
                             , scene =
-                                { receivedEmail = { from = from, to = to, contents = List.reverse email }
+                                { receivedEmail = { props = { key = "from", value = from } :: List.map (\value -> { key = "to", value = value }) to, contents = List.reverse email }
                                 , actions = List.reverse actions
                                 }
                             , name = sectionName
@@ -279,16 +281,16 @@ convertSection me contacts { level, label, contents } =
             )
 
 
-convertActionParameters : Dict String Script.AddressbookEntry -> Bool -> List (Loc Camp.Parameter) -> Result String { spawn : List (Loc String), next : Maybe (Loc String), to : List Script.AddressbookEntry }
+convertActionParameters : Dict String Script.AddressbookEntry -> Bool -> List (Loc Camp.Parameter) -> Result String { spawn : List (Loc String), next : Maybe (Loc String), to : List String }
 convertActionParameters addressBook hasTo parameters =
     resultFold
         (\parameter accum ->
             case parameter of
                 ( _, ( ( loc, "to" ), [ ( varloc, Camp.Variable ident ) ] ) ) ->
                     case Dict.get ident addressBook of
-                        Just address ->
+                        Just _ ->
                             if hasTo then
-                                Ok { accum | to = address :: accum.to }
+                                Ok { accum | to = ident :: accum.to }
 
                             else
                                 Err ("Did not expect `|> to` parameters in this command (line " ++ String.fromInt loc.start.line ++ ")")
@@ -338,7 +340,7 @@ convertActionParameters addressBook hasTo parameters =
             )
 
 
-convertEmailParameters : Dict String Script.AddressbookEntry -> Loc.Location -> List (Loc Camp.Parameter) -> Result String { from : Script.AddressbookEntry, to : List Script.AddressbookEntry }
+convertEmailParameters : Dict String Script.AddressbookEntry -> Loc.Location -> List (Loc Camp.Parameter) -> Result String { from : String, to : List String }
 convertEmailParameters addressBook l parameters =
     resultFold
         (\parameter accum ->
@@ -346,8 +348,8 @@ convertEmailParameters addressBook l parameters =
                 ( loc, ( ( _, "from" ), [ ( varloc, Camp.Variable ident ) ] ) ) ->
                     if Maybe.isNothing accum.from then
                         case Dict.get ident addressBook of
-                            Just address ->
-                                Ok { accum | from = Just address }
+                            Just _ ->
+                                Ok { accum | from = Just ident }
 
                             Nothing ->
                                 Err ("Email from unknown identity " ++ ident ++ " on line " ++ String.fromInt varloc.start.line)
@@ -360,8 +362,8 @@ convertEmailParameters addressBook l parameters =
 
                 ( _, ( ( _, "to" ), [ ( varloc, Camp.Variable ident ) ] ) ) ->
                     case Dict.get ident addressBook of
-                        Just address ->
-                            Ok { accum | to = address :: accum.to }
+                        Just _ ->
+                            Ok { accum | to = ident :: accum.to }
 
                         Nothing ->
                             Err ("Email from unknown identity " ++ ident ++ " on line " ++ String.fromInt varloc.start.line)
@@ -387,21 +389,19 @@ convertEmailParameters addressBook l parameters =
 
 type alias EmailConvert a =
     { a
-        | email : List String
+        | email : List Message.Element
         , threads : List (Loc String)
         , scenes : List (Loc String)
         , actions : List Script.Action
     }
 
 
-convertEmailElement : Script.AddressbookEntry -> Dict String Script.AddressbookEntry -> Camp.Element -> EmailConvert a -> Result String (EmailConvert a)
-convertEmailElement me contacts element accum =
+convertEmailElement : Dict String Script.AddressbookEntry -> Camp.Element -> EmailConvert a -> Result String (EmailConvert a)
+convertEmailElement contacts element accum =
     case element of
         Camp.Paragraph { contents } ->
-            List.map convertMarkup contents
-                |> Result.combine
-                |> Result.map String.concat
-                |> Result.map (\paragraph -> { accum | email = paragraph :: accum.email })
+            convertMarkup Markup.plain contents
+                |> Result.map (\paragraph -> { accum | email = Message.Paragraph paragraph :: accum.email })
 
         Camp.Command { command, lines, child } ->
             case command of
@@ -418,6 +418,12 @@ convertEmailElement me contacts element accum =
                     -}
                     Ok { accum | actions = Script.Archive :: accum.actions }
 
+                ( Just ( _, "image" ), ( [ ( _, Camp.String url ) ], [] ) ) ->
+                    Ok { accum | email = Message.Image { url = url } :: accum.email }
+
+                ( Just ( loc, "image" ), _ ) ->
+                    Err ("!image should only have a single argument, a url in quotes (line " ++ String.fromInt loc.start.line ++ ")")
+
                 ( Just ( loc, "archive" ), ( _, _ ) ) ->
                     Err ("!archive shouldn't have arguments or parameters (line " ++ String.fromInt loc.start.line ++ ")")
 
@@ -431,9 +437,7 @@ convertEmailElement me contacts element accum =
                 ( Just ( _, "respond" ), ( [ ( _, Camp.Markup text ) ], params ) ) ->
                     let
                         shortResponse_r =
-                            List.map convertMarkup text
-                                |> Result.combine
-                                |> Result.map String.concat
+                            convertMarkup Markup.plain text
 
                         emailResponse_r =
                             case child of
@@ -455,7 +459,7 @@ convertEmailElement me contacts element accum =
                                 | actions =
                                     Script.Respond
                                         { shortText = shortResponse
-                                        , email = { to = to, from = me, contents = emailResponse }
+                                        , email = { props = { key = "from", value = "Me" } :: List.map (\value -> { key = "to", value = value }) to, contents = emailResponse }
                                         , next = Maybe.map Loc.value next
                                         , spawn = List.map Loc.value spawn
                                         }
@@ -485,13 +489,13 @@ convertEmailElement me contacts element accum =
             Ok accum
 
 
-convertEmailResponse : List Camp.Element -> Result String (List String)
+convertEmailResponse : List Camp.Element -> Result String (List Message.Element)
 convertEmailResponse elems =
     List.filterMap
         (\elem ->
             case elem of
                 Camp.Paragraph { contents } ->
-                    Just <| (List.map convertMarkup contents |> Result.combine |> Result.map String.concat)
+                    Just <| (convertMarkup Markup.plain contents |> Result.map Message.Paragraph)
 
                 Camp.Command { lines } ->
                     Just <| Err ("Unexpected command on line " ++ String.fromInt lines.start)
@@ -509,20 +513,51 @@ convertEmailResponse elems =
         |> Result.combine
 
 
-convertMarkup : Camp.Text -> Result String String
-convertMarkup element =
-    case element of
-        Camp.Raw str ->
-            Ok str
+convertMarkup : Markup.Style -> Camp.Markup -> Result String Markup
+convertMarkup style =
+    List.map
+        (\text ->
+            case text of
+                Camp.Raw str ->
+                    Ok [ Markup.Raw style str ]
 
-        Camp.Verbatim _ ( _, str ) ->
-            Ok str
+                Camp.Verbatim _ ( _, str ) ->
+                    Ok [ Markup.Raw style str ]
 
-        Camp.Annotation _ markup _ _ ->
-            List.map convertMarkup markup |> Result.combine |> Result.map String.concat
+                Camp.Annotation ( _, "*" ) markup _ _ ->
+                    convertMarkup { style | bold = not style.bold } markup
 
-        Camp.InlineProblem problem ->
-            Err (Problem.inlineToString problem |> Loc.value)
+                Camp.Annotation ( _, "_" ) markup _ _ ->
+                    convertMarkup { style | italic = not style.italic } markup
+
+                Camp.Annotation ( _, "~" ) markup _ _ ->
+                    convertMarkup { style | strike = not style.strike } markup
+
+                Camp.Annotation ( _, "\"" ) markup _ _ ->
+                    convertMarkup style markup
+                        |> Result.map (\contents -> Markup.Raw style "“" :: contents ++ [ Markup.Raw style "”" ])
+
+                Camp.Annotation ( _, "..." ) _ _ _ ->
+                    Ok [ Markup.Raw style "…" ]
+
+                Camp.Annotation ( _, "--" ) _ _ _ ->
+                    Ok [ Markup.Raw style "–" ]
+
+                Camp.Annotation ( _, "---" ) _ _ _ ->
+                    Ok [ Markup.Raw style "—" ]
+
+                Camp.Annotation ( _, "[" ) markup _ (Just ( _, ( _, ( [ ( _, Camp.String url ) ], _ ) ) )) ->
+                    convertMarkup style markup
+                        |> Result.map (\contents -> [ Markup.Link { url = url, contents = contents } ])
+
+                Camp.Annotation ( loc, _ ) _ _ _ ->
+                    Err <| "Unknown annotation on line " ++ String.fromInt loc.start.line
+
+                Camp.InlineProblem problem ->
+                    Err (Problem.inlineToString problem |> Loc.value)
+        )
+        >> Result.combine
+        >> Result.map List.concat
 
 
 preludeItem : Camp.Element -> Maybe (Result String ( String, Script.AddressbookEntry ))

@@ -31,6 +31,8 @@
 # Drinks tonight?
 ! email |> from Erik |> to dslist
 
+! image "assets/avocomm-logo.png"
+
 Do either of you want to grab a drink tonight?
 
 ! respond [Meet somewhere closer?]
@@ -215,7 +217,8 @@ Great. Thx
 # Jobs at my company
 ! email |> from college_friend |> to Me
 
-Hey [](short Me)! Can't wait to see you when you get into town!
+% Hey [](short Me)! Can't wait to see you when you get into town! TODO TODO
+Hey Naolin! Can't wait to see you when you get into town!
 
 Also, wanted to let you know Panoptico is hiring research
 software engineers in machine learning. When are you graduating

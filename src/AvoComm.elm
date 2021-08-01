@@ -4,28 +4,31 @@ import App as App
 import Browser.Navigation as Nav exposing (Key)
 import Cmd.Extra as Cmd
 import CryptoScript
-import Dict
+import Dict exposing (Dict)
+import Html exposing (text)
 import List.Extra as List
-import ScriptTypes as Script
+import Markup exposing (Markup)
+import Message exposing (Message)
+import Script exposing (Script)
 import Url exposing (Url)
 
 
 init :
-    { me : Script.AddressbookEntry, script : List Script.ThreadScript, starting : List String }
+    Script
     -> Url
     -> Key
     -> ( App.Model, Cmd App.Msg )
-init parsed _ key =
-    parsed.starting
+init script _ key =
+    script.starting
         |> List.map CryptoScript.hash
         |> List.foldr
             (\scriptId model ->
                 let
-                    script =
-                        getScript scriptId model
+                    threadScript =
+                        getThreadScript scriptId model
 
                     { newEmails, responseOptions, archivable, size } =
-                        advanceThread model script script.start
+                        advanceThread model threadScript threadScript.start
                 in
                 { model
                     | inbox =
@@ -41,16 +44,15 @@ init parsed _ key =
             { state = App.InboxOpen
             , blocked = Nothing
             , inbox = []
-            , scripts = parsed.script |> List.map CryptoScript.hashScript
+            , script = CryptoScript.hashScript script
             , navKey = key
-            , me = parsed.me
             }
         |> Cmd.with (Nav.pushUrl key "#/k/inbox/")
 
 
-getScript : String -> App.Model -> Script.ThreadScript
-getScript needle model =
-    List.find (\script -> needle == script.id) model.scripts
+getThreadScript : String -> App.Model -> Script.ThreadScript
+getThreadScript needle model =
+    List.find (\{ id } -> needle == id) model.script.threads
         |> Maybe.withDefault
             { id = needle
             , subject = "Error, can't find " ++ needle
@@ -212,8 +214,8 @@ update msg model =
                             )
                                 |> Maybe.withDefault
                                     -- Should be impossible to hit the default
-                                    { shortText = ""
-                                    , email = { from = model.me, to = [], contents = [] }
+                                    { shortText = []
+                                    , email = { props = [], contents = [] }
                                     , next = Nothing
                                     , spawn = []
                                     }
@@ -224,7 +226,7 @@ update msg model =
                                 (\spawnId ->
                                     let
                                         script =
-                                            getScript spawnId model
+                                            getThreadScript spawnId model
 
                                         { newEmails, responseOptions, archivable, size } =
                                             advanceThread model script script.start
@@ -252,7 +254,17 @@ update msg model =
                                             { thread
                                                 | contents = thread.contents ++ [ response.email ]
                                                 , state = App.Responded { archivable = False }
-                                                , size = List.foldr (\str size -> size + 2 * String.length str) thread.size response.email.contents
+                                                , size =
+                                                    List.findMap
+                                                        (\{ key, value } ->
+                                                            if key == "size" then
+                                                                String.toInt value
+
+                                                            else
+                                                                Nothing
+                                                        )
+                                                        response.email.props
+                                                        |> Maybe.withDefault 4000
                                             }
                                         |> advanceInbox model
                                    )
@@ -291,6 +303,46 @@ update msg model =
             model |> Cmd.pure
 
 
+messageTextSize : Markup.Text -> Int
+messageTextSize text =
+    case text of
+        Markup.Raw _ contents ->
+            String.length contents
+
+        Markup.Link { url, contents } ->
+            messageMarkupSize contents + String.length url + 500
+
+
+messageMarkupSize : Markup -> Int
+messageMarkupSize =
+    List.foldr (\text n -> messageTextSize text + n) 0
+
+
+messageElementSize : Message.Element -> Int
+messageElementSize element =
+    case element of
+        Message.Image { url } ->
+            150000 + String.length url * 3
+
+        Message.Paragraph contents ->
+            messageMarkupSize contents
+
+        Message.Quote contents ->
+            500 + messageElementsSize contents
+
+
+messageElementsSize : List Message.Element -> Int
+messageElementsSize =
+    List.foldr (\element n -> messageElementSize element + n) 0
+
+
+messageSize : Message -> Int
+messageSize { props, contents } =
+    List.foldr (\{ key, value } n -> String.length key + String.length value + n)
+        (2048 + messageElementsSize contents)
+        props
+
+
 advanceInbox : App.Model -> List App.ActiveThread -> List App.ActiveThread
 advanceInbox model inbox =
     case model.blocked of
@@ -300,7 +352,7 @@ advanceInbox model inbox =
         Just { scriptId, next } ->
             case List.splitWhen (\thread -> thread.scriptId == scriptId) inbox of
                 Just ( prefix, thread :: postfix ) ->
-                    case advanceThread model (getScript scriptId model) next of
+                    case advanceThread model (getThreadScript scriptId model) next of
                         { newEmails, responseOptions, archivable, size } ->
                             { thread
                                 | contents = thread.contents ++ newEmails
@@ -319,17 +371,12 @@ advanceThread :
     App.Model
     -> Script.ThreadScript
     -> String
-    -> { newEmails : List Script.Email, responseOptions : List Script.EmailResponse, archivable : Bool, size : Int }
+    -> { newEmails : List Message, responseOptions : List Script.EmailResponse, archivable : Bool, size : Int }
 advanceThread model script next =
     Dict.get next script.scenes
         |> Maybe.map
             (\{ receivedEmail, actions } ->
                 let
-                    newSize =
-                        List.foldr (\text size -> String.length text + size)
-                            (1500 + 500 * List.length receivedEmail.to)
-                            receivedEmail.contents
-
                     -- Find an Immediate action (if one exists) from the script
                     immediateAction =
                         List.findMap
@@ -368,7 +415,7 @@ advanceThread model script next =
                         { newEmails = receivedEmail :: newEmails
                         , responseOptions = responseOptions
                         , archivable = archivable
-                        , size = size + newSize
+                        , size = size + messageSize receivedEmail
                         }
 
                     Nothing ->
@@ -377,7 +424,7 @@ advanceThread model script next =
                         { newEmails = [ receivedEmail ]
                         , responseOptions = currentResponseOptions
                         , archivable = List.any ((==) Script.Archive) actions
-                        , size = newSize
+                        , size = messageSize receivedEmail
                         }
             )
         |> Maybe.withDefault { newEmails = [], responseOptions = [], archivable = False, size = 0 }

@@ -13,7 +13,9 @@ import Element.Font as Font
 import Element.Region as Region
 import Html.Attributes
 import List.Extra as List
-import ScriptTypes as Script
+import Markup exposing (Markup)
+import Message exposing (Message)
+import Script as Script
 import UI
 import Util
 
@@ -38,17 +40,17 @@ view model =
                             |> List.length
                 in
                 if unread == 0 then
-                    "Inbox - " ++ model.me.email ++ " - AvoComm"
+                    "Inbox - " ++ model.script.me.email ++ " - AvoComm"
 
                 else
-                    "Inbox (" ++ String.fromInt unread ++ ") - " ++ model.me.email ++ " - AvoComm"
+                    "Inbox (" ++ String.fromInt unread ++ ") - " ++ model.script.me.email ++ " - AvoComm"
 
             App.ThreadOpen { location } ->
                 let
                     script =
                         getScript location.scriptId model
                 in
-                script.subject ++ " - " ++ model.me.email ++ " - AvoComm"
+                script.subject ++ " - " ++ model.script.me.email ++ " - AvoComm"
     , body =
         [ Element.layout [ height fill, width fill ] <|
             row [ width fill, height fill, spacing 0 ] <|
@@ -161,7 +163,7 @@ inboxFull model =
 
 getScript : String -> App.Model -> Script.ThreadScript
 getScript needle model =
-    List.find (\script -> needle == script.id) model.scripts
+    List.find (\{ id } -> needle == id) model.script.threads
         |> Maybe.withDefault
             { id = needle
             , subject = "Error, can't find " ++ needle
@@ -242,25 +244,36 @@ prettySize x =
         String.fromInt (x // 1024 // 1024) ++ " MB"
 
 
-getThreadParticipants : App.Model -> List Script.Email -> String
+getAddressBookEntry : App.Model -> String -> Script.AddressbookEntry
+getAddressBookEntry { script } id =
+    Dict.get id script.addressBook
+        |> Maybe.withDefault
+            { email = "XXX_ERROR_MISSING_" ++ id
+            , full = "XXX_ERROR_MISSING_" ++ id
+            , short = "XXX_ERROR_MISSING_" ++ id
+            }
+
+
+getThreadParticipants : App.Model -> List Message -> String
 getThreadParticipants model emails =
-    List.map .from emails
-        |> List.uniqueBy .email
+    List.map (\{ props } -> getFrom model props :: getTo model props) emails
+        |> List.concat
+        |> List.uniqueBy .full
         |> List.map
-            (\sender ->
-                if sender.email == model.me.email then
-                    { email = sender.email, short = "me", full = "me" }
+            (\addressbookEntry ->
+                if addressbookEntry.email == model.script.me.email then
+                    { email = addressbookEntry.email, short = "me", full = "me" }
 
                 else
-                    sender
+                    addressbookEntry
             )
-        |> (\senders ->
-                case senders of
+        |> (\participants ->
+                case participants of
                     [ { full } ] ->
                         full
 
                     _ ->
-                        List.map .short senders |> List.intersperse ", " |> String.concat
+                        List.map .short participants |> List.intersperse ", " |> String.concat
            )
 
 
@@ -297,10 +310,10 @@ threadFull model { inboxIndex, scriptId } =
                 [ el [ width UI.leftBuffer ] none
                 , el [ Font.size 24, UI.contentFont ] (text script.subject)
                 ]
-            :: (List.map viewEmail thread.contents |> List.intersperse UI.separator)
+            :: (List.map (viewEmail model) thread.contents |> List.intersperse UI.separator)
             ++ [ case thread.state of
                     App.Unresponded { responseOptions, currentlySelectedOptionIndex } ->
-                        suggestionPicker responseOptions currentlySelectedOptionIndex
+                        suggestionPicker model responseOptions currentlySelectedOptionIndex
 
                     _ ->
                         none
@@ -308,7 +321,7 @@ threadFull model { inboxIndex, scriptId } =
         )
 
 
-suggestionButton : Bool -> Int -> String -> Element App.Msg
+suggestionButton : Bool -> Int -> Markup -> Element App.Msg
 suggestionButton selected suggestionIndex shortMessage =
     let
         ( fontColor, backgroundColor, borderColor ) =
@@ -318,7 +331,7 @@ suggestionButton selected suggestionIndex shortMessage =
             else
                 ( Color.suggestionColor, Color.white, Color.uiGray )
     in
-    el
+    row
         [ Font.color fontColor
         , Background.color backgroundColor
         , Events.onClick (App.ToggleSuggestion suggestionIndex)
@@ -330,11 +343,11 @@ suggestionButton selected suggestionIndex shortMessage =
         , width shrink
         , UI.contentFont
         ]
-        (text shortMessage)
+        (viewMarkup shortMessage)
 
 
-suggestionPicker : List Script.EmailResponse -> Maybe Int -> Element App.Msg
-suggestionPicker responseOptions currentlySelectedOptionIndex =
+suggestionPicker : App.Model -> List Script.EmailResponse -> Maybe Int -> Element App.Msg
+suggestionPicker model responseOptions currentlySelectedOptionIndex =
     column [ width fill ]
         [ -- Selections
           row [ width fill ]
@@ -352,13 +365,38 @@ suggestionPicker responseOptions currentlySelectedOptionIndex =
             ]
         , -- Contents of selected email
           List.getAt (currentlySelectedOptionIndex |> Maybe.withDefault -1) responseOptions
-            |> Maybe.map viewEmailResponse
+            |> Maybe.map (viewEmailResponse model)
             |> Maybe.withDefault none
         ]
 
 
-viewEmailResponse : Script.EmailResponse -> Element App.Msg
-viewEmailResponse emailResponse =
+getFrom : App.Model -> List { key : String, value : String } -> Script.AddressbookEntry
+getFrom model =
+    List.findMap
+        (\{ key, value } ->
+            if key == "from" then
+                Just (getAddressBookEntry model value)
+
+            else
+                Nothing
+        )
+        >> Maybe.withDefault { email = "XXX_NOFROM", full = "XXX_NOFROM", short = "XXX_NOFROM" }
+
+
+getTo : App.Model -> List { key : String, value : String } -> List Script.AddressbookEntry
+getTo model =
+    List.filterMap
+        (\{ key, value } ->
+            if key == "to" then
+                Just (getAddressBookEntry model value)
+
+            else
+                Nothing
+        )
+
+
+viewEmailResponse : App.Model -> Script.EmailResponse -> Element App.Msg
+viewEmailResponse model emailResponse =
     column [ width fill ]
         [ el [ height UI.responseSeparator ] none
         , row [ width fill ]
@@ -372,8 +410,8 @@ viewEmailResponse emailResponse =
                 , Border.glow Color.uiGray 1.0
                 ]
                 (column [ width fill, spacing 20 ]
-                    [ viewResponse "TO:" emailResponse.email.to
-                    , column [ spacing 10 ] (List.map (\par -> paragraph [ UI.contentFont ] [ text par ]) emailResponse.email.contents)
+                    [ viewResponse "TO:" (getTo model emailResponse.email.props)
+                    , viewEmailContents emailResponse.email.contents
                     , UI.separator
                     , toolbarButton True "→" "Send" (Just App.SelectSuggestion)
                     ]
@@ -398,24 +436,86 @@ toPill record =
     el [ paddingXY 10 0, height (px 22), Border.width 1, Border.rounded 10, Font.size 15, Border.color (rgb255 255 140 0), UI.contentFont ] (el [ centerY ] (text record.full))
 
 
-viewEmail : Script.Email -> Element App.Msg
-viewEmail email =
+viewEmailContents : List Message.Element -> Element App.Msg
+viewEmailContents elements =
+    column [ width fill, spacing 10 ] <|
+        List.map
+            (\element ->
+                case element of
+                    Message.Paragraph markup ->
+                        paragraph [ UI.contentFont ] (viewMarkup markup)
+
+                    Message.Image { url } ->
+                        image [] { src = url, description = "" }
+
+                    Message.Quote _ ->
+                        paragraph [ UI.contentFont ] [ text <| "QUOTED SECTION" ]
+            )
+            elements
+
+
+viewStyle : { a | bold : Bool, italic : Bool, strike : Bool } -> List (Attribute msg)
+viewStyle { bold, italic, strike } =
+    (if bold then
+        [ Font.bold ]
+
+     else
+        []
+    )
+        ++ (if italic then
+                [ Font.italic ]
+
+            else
+                []
+           )
+        ++ (if strike then
+                [ Font.strike ]
+
+            else
+                []
+           )
+
+
+viewMarkup : Markup -> List (Element App.Msg)
+viewMarkup =
+    List.map
+        (\element ->
+            case element of
+                Markup.Raw style str ->
+                    [ el (viewStyle style) (text str) ]
+
+                Markup.Link { contents } ->
+                    -- TODO ADD STYLING AND USE URL
+                    viewMarkup contents
+        )
+        >> List.concat
+
+
+
+-- text >> List.singleton >> paragraph [ UI.contentFont ]
+
+
+viewEmail : App.Model -> Message -> Element App.Msg
+viewEmail model email =
     let
         to =
-            email.to
-                |> List.map (\x -> x.full)
+            getTo model email.props
+                |> List.map .full
                 |> List.intersperse ", "
                 |> String.concat
+
+        from =
+            getFrom model email.props
     in
     row [ width fill ]
         [ el [ width UI.leftBuffer, centerX, alignTop ] (html Assets.idCircle)
         , column [ width fill, spacing 10 ]
-            (paragraph [ Font.size 15 ]
-                [ el [ Font.bold, UI.contentFont ] (text email.from.full)
-                , el [ Font.color Color.dimmedText, UI.contentFont ] (text ("  <" ++ email.from.email ++ ">"))
+            [ paragraph [ Font.size 15 ]
+                [ el [ Font.bold, UI.contentFont ] (text from.full)
+                , el [ Font.color Color.dimmedText, UI.contentFont ] (text ("  <" ++ from.email ++ ">"))
                 ]
-                :: row [ Font.size 15, Font.color Color.dimmedText, spacing 4 ] [ el [ UI.uiFont ] (text "TO:"), el [ UI.contentFont ] (text to) ]
-                :: List.map (text >> List.singleton >> paragraph [ UI.contentFont ]) email.contents
-            )
+            , row [ Font.size 15, Font.color Color.dimmedText, spacing 4 ] [ el [ UI.uiFont ] (text "TO:"), el [ UI.contentFont ] (text to) ]
+            , viewEmailContents email.contents
+            ]
         , el [ width UI.rightBuffer ] none
         ]

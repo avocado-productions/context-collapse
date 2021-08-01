@@ -4,17 +4,17 @@ module App exposing (ActiveThread, ActiveThreadState(..), InboxState(..), Model,
 
 import Browser
 import Browser.Navigation
-import ScriptTypes as Script
+import Message exposing (Message)
 import Url exposing (Url)
+import Script exposing (Script)
 
 
 type alias Model =
     { blocked : Maybe { scriptId : String, next : String }
-    , scripts : List Script.ThreadScript
+    , script : Script
     , inbox : List ActiveThread
     , state : InboxState
     , navKey : Browser.Navigation.Key
-    , me : Script.AddressbookEntry
     }
 
 
@@ -45,7 +45,7 @@ type alias ThreadLocation =
 
 type alias ActiveThread =
     { scriptId : String
-    , contents : List Script.Email
+    , contents : List Message
     , state : ActiveThreadState
     , starred : Bool
     , size : Int
