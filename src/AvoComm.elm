@@ -4,7 +4,7 @@ import App as App
 import Browser.Navigation as Nav exposing (Key)
 import Cmd.Extra as Cmd
 import CryptoScript
-import Dict exposing (Dict)
+import Dict
 import Html exposing (text)
 import List.Extra as List
 import Markup exposing (Markup)
