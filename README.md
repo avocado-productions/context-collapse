@@ -49,4 +49,9 @@ Third, use the following commands to create the prebuilt release:
     cd ..
     tar czvf context-collapse/context-collapse-prebuilt.tgz -T context-collapse/manifest.txt
 
+## Developing
 
+For development, run the Python script for the server, and use Chokidar
+(`npm install --global chokidar-cli`) to watch and recompile the code.
+
+    chokidar '**/*.elm' -c 'elm make src/Controller.elm --output=dist/avocomm.js --debug'
