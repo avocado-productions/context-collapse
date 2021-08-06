@@ -16,6 +16,7 @@ import List.Extra as List
 import Markup exposing (Markup)
 import Message exposing (Message)
 import Script as Script
+import Storage exposing (Storage)
 import UI
 import Util
 
@@ -370,29 +371,16 @@ suggestionPicker model responseOptions currentlySelectedOptionIndex =
         ]
 
 
-getFrom : App.Model -> List { key : String, value : String } -> Script.AddressbookEntry
+getFrom : App.Model -> Storage -> Script.AddressbookEntry
 getFrom model =
-    List.findMap
-        (\{ key, value } ->
-            if key == "from" then
-                Just (getAddressBookEntry model value)
-
-            else
-                Nothing
-        )
-        >> Maybe.withDefault { email = "XXX_NOFROM", full = "XXX_NOFROM", short = "XXX_NOFROM" }
+    Storage.getString "from"
+        >> getAddressBookEntry model
 
 
-getTo : App.Model -> List { key : String, value : String } -> List Script.AddressbookEntry
+getTo : App.Model -> Storage -> List Script.AddressbookEntry
 getTo model =
-    List.filterMap
-        (\{ key, value } ->
-            if key == "to" then
-                Just (getAddressBookEntry model value)
-
-            else
-                Nothing
-        )
+    Storage.getStrings "to"
+        >> List.map (getAddressBookEntry model)
 
 
 viewEmailResponse : App.Model -> Script.EmailResponse -> Element App.Msg

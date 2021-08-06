@@ -10,7 +10,9 @@ import List.Extra as List
 import Markup exposing (Markup)
 import Message exposing (Message)
 import Script exposing (Script)
+import Storage
 import Url exposing (Url)
+import Props
 
 
 init :
@@ -215,7 +217,7 @@ update msg model =
                                 |> Maybe.withDefault
                                     -- Should be impossible to hit the default
                                     { shortText = []
-                                    , email = { props = [], contents = [] }
+                                    , email = { props = Props.empty, contents = [] }
                                     , next = Nothing
                                     , spawn = []
                                     }
@@ -255,15 +257,7 @@ update msg model =
                                                 | contents = thread.contents ++ [ response.email ]
                                                 , state = App.Responded { archivable = False }
                                                 , size =
-                                                    List.findMap
-                                                        (\{ key, value } ->
-                                                            if key == "size" then
-                                                                String.toInt value
-
-                                                            else
-                                                                Nothing
-                                                        )
-                                                        response.email.props
+                                                    Storage.getMaybeInt "size" response.email.props
                                                         |> Maybe.withDefault 4000
                                             }
                                         |> advanceInbox model
@@ -338,9 +332,9 @@ messageElementsSize =
 
 messageSize : Message -> Int
 messageSize { props, contents } =
-    List.foldr (\{ key, value } n -> String.length key + String.length value + n)
-        (2048 + messageElementsSize contents)
-        props
+    List.foldr (\to n -> 75 + String.length to + n)
+        (2048 + messageElementsSize contents + String.length (Storage.getString "from" props))
+        (Storage.getStrings "to" props)
 
 
 advanceInbox : App.Model -> List App.ActiveThread -> List App.ActiveThread
