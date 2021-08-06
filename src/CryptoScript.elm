@@ -2,7 +2,7 @@ module CryptoScript exposing (hash, hashScript)
 
 import Crypto.Hash as Hash
 import Dict
-import ScriptTypes as Script
+import Script as Script exposing (Script)
 
 
 hash : String -> String
@@ -11,14 +11,19 @@ hash str =
         |> String.slice 0 15
 
 
+hashThread : Script.ThreadScript -> Script.ThreadScript
+hashThread thread =
+    { thread
+        | id = hash thread.id
+        , scenes = Dict.map hashScene thread.scenes
+    }
+
 {-| Replace author-defined threadnames with hashes that one would be more likely to see in an email client
 -}
-hashScript : Script.ThreadScript -> Script.ThreadScript
+
+hashScript : Script -> Script
 hashScript script =
-    { script
-        | id = hash script.id
-        , scenes = Dict.map hashScene script.scenes
-    }
+    { script | threads = List.map hashThread script.threads }
 
 
 hashScene : a -> Script.ThreadScene -> Script.ThreadScene

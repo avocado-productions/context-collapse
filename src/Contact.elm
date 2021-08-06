@@ -1,6 +1,6 @@
 module Contact exposing (..)
 
-import ScriptTypes as Types
+import Script as Types
 
 
 create : Types.AddressbookEntry
