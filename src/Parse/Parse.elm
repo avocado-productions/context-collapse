@@ -12,11 +12,18 @@ import List.Extra as List
 import Markup exposing (Markup)
 import Maybe.Extra as Maybe
 import Message exposing (Message)
-import Props
+import Props exposing (Props)
 import Result.Extra as Result
 import Script exposing (Script)
 import Set
-import Storage exposing (Storage)
+
+
+emptyMessageProps : Props
+emptyMessageProps =
+    Props.emptyAbort { todo = Debug.todo }
+        |> Props.expectString "from"
+        |> Props.expectStrings "to"
+        |> Props.expectInt "size"
 
 
 resultFold : (a -> b -> Result x b) -> b -> List a -> Result x b
@@ -283,7 +290,7 @@ convertSection contacts { level, label, contents } =
             )
 
 
-convertActionParameters : Dict String Script.AddressbookEntry -> Bool -> List (Loc Camp.Parameter) -> Result String { spawn : List (Loc String), next : Maybe (Loc String), to : Storage }
+convertActionParameters : Dict String Script.AddressbookEntry -> Bool -> List (Loc Camp.Parameter) -> Result String { spawn : List (Loc String), next : Maybe (Loc String), to : Props }
 convertActionParameters addressBook hasTo parameters =
     resultFold
         (\parameter accum ->
@@ -292,7 +299,7 @@ convertActionParameters addressBook hasTo parameters =
                     case Dict.get ident addressBook of
                         Just _ ->
                             if hasTo then
-                                Ok { accum | to = Storage.addString "to" ident accum.to }
+                                Ok { accum | to = Props.addString "to" ident accum.to }
 
                             else
                                 Err ("Did not expect `|> to` parameters in this command (line " ++ String.fromInt loc.start.line ++ ")")
@@ -342,7 +349,7 @@ convertActionParameters addressBook hasTo parameters =
             )
 
 
-convertEmailParameters : Dict String Script.AddressbookEntry -> Loc.Location -> List (Loc Camp.Parameter) -> Result String Storage
+convertEmailParameters : Dict String Script.AddressbookEntry -> Loc.Location -> List (Loc Camp.Parameter) -> Result String Props
 convertEmailParameters addressBook l parameters =
     resultFold
         (\parameter accum ->
@@ -389,7 +396,7 @@ convertEmailParameters addressBook l parameters =
             )
         |> Result.map
             (\{ from, to } ->
-                List.foldr (Storage.addString "to") (Storage.setString "from" from Props.empty) to
+                emptyMessageProps |> Props.setString "from" from |> Props.setStrings "to" to
             )
 
 
@@ -465,7 +472,7 @@ convertEmailElement contacts element accum =
                                 | actions =
                                     Script.Respond
                                         { shortText = shortResponse
-                                        , email = { props = Storage.setString "from" "Me" to, contents = emailResponse }
+                                        , email = { props = Props.setString "from" "Me" to, contents = emailResponse }
                                         , next = Maybe.map Loc.value next
                                         , spawn = List.map Loc.value spawn
                                         }

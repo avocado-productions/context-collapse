@@ -5,8 +5,9 @@ module App exposing (ActiveThread, ActiveThreadState(..), InboxState(..), Model,
 import Browser
 import Browser.Navigation
 import Message exposing (Message)
-import Url exposing (Url)
 import Script exposing (Script)
+import Props exposing (Props)
+import Url exposing (Url)
 
 
 type alias Model =
@@ -24,10 +25,9 @@ type Msg
     | NavBack
     | OpenInbox
     | OpenThread ThreadLocation
-    | ToggleStar String
-    | ToggleSuggestion Int
-    | SelectSuggestion
-    | ArchiveThread
+    | SetFlag { thread : String, key : String, value : Bool }
+    | SetMaybeIntProp { thread : String, key : String, value : Maybe Int }
+    | Select String Int
     | OnUrlChange Url
     | OnUrlRequest Browser.UrlRequest
 
@@ -43,21 +43,26 @@ type alias ThreadLocation =
     }
 
 
+{-| ActiveThread props:
+
+  - archivable (flag)
+  - archived (flag)
+  - size (int)
+  - starred (flag)
+  - important (flag)
+  - importantSetByUser (flag)
+  - unread (flag)
+  - selection (maybe int)
+
+-}
 type alias ActiveThread =
     { scriptId : String
     , contents : List Message
     , state : ActiveThreadState
-    , starred : Bool
-    , size : Int
+    , props : Props
     }
 
 
 type ActiveThreadState
-    = Responded { archivable : Bool }
-    | Archived
-    | Unread { archivable : Bool, responseOptions : List Script.EmailResponse }
-    | Unresponded
-        { archivable : Bool
-        , responseOptions : List Script.EmailResponse
-        , currentlySelectedOptionIndex : Maybe Int
-        }
+    = Waiting
+    | Ready { responseOptions : List Script.EmailResponse }

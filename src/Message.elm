@@ -1,11 +1,11 @@
 module Message exposing (Element(..), Message)
 
 import Markup exposing (Markup)
-import Storage exposing (Storage)
+import Props exposing (Props)
 
 
 type alias Message =
-    { props : Storage
+    { props : Props
     , contents : List Element
     }
 

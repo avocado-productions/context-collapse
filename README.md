@@ -18,17 +18,12 @@ refresh when you change the script.
 
 ## Build
 
-To build the engine from source, you need the 
-[Elm compiler](https://guide.elm-lang.org/install/elm.html)
-and the Camperdown repository (currently private).
-
-    git clone -b contextcollapse git@github.com:brilliantorg/camperdown.git
-    git clone -b parser git@github.com:avocado-productions/context-collapse
-    cd context-collapse
-    elm make src/Controller.elm --output=dist/avocomm.js --optimize
-
 You'll need to have a stable internet connection in order for the elm build
 script to download all its dependencies and compile successfully.
+
+    git clone git@github.com:avocado-productions/context-collapse
+    cd context-collapse
+    elm make src/Controller.elm --output=dist/avocomm.js --optimize
 
 For an debug build, replace `--optimize` in the last command with `--debug`.
 To compress the result according to the recommendations

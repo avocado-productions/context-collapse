@@ -15,8 +15,8 @@ import Html.Attributes
 import List.Extra as List
 import Markup exposing (Markup)
 import Message exposing (Message)
+import Props exposing (Props)
 import Script as Script
-import Storage exposing (Storage)
 import UI
 import Util
 
@@ -29,15 +29,7 @@ view model =
                 let
                     unread =
                         model.inbox
-                            |> List.filterMap
-                                (\email ->
-                                    case email.state of
-                                        App.Unread _ ->
-                                            Just ()
-
-                                        _ ->
-                                            Nothing
-                                )
+                            |> List.filter (\{ props } -> Props.getFlag "unread" props)
                             |> List.length
                 in
                 if unread == 0 then
@@ -124,30 +116,22 @@ toolbar model =
                 thread =
                     getThread location.inboxIndex model
 
-                archive canArchive =
-                    if canArchive then
-                        toolbarButton False "↓" "Archive" (Just App.ArchiveThread)
+                archive =
+                    if Props.getFlag "archivable" thread.props then
+                        toolbarButton False "↓" "Archive" (Just (App.SetFlag { thread = thread.scriptId, key = "archived", value = True }))
 
                     else
                         toolbarButton False "↓" "Archive" Nothing
             in
             row []
                 [ toolbarButton False "←" "Return to Inbox" (Just App.NavBack)
-                , case thread.state of
-                    App.Unresponded { archivable } ->
-                        archive archivable
-
-                    App.Responded { archivable } ->
-                        archive archivable
-
-                    _ ->
-                        archive False
+                , archive
                 ]
 
 
 inboxFull : App.Model -> Element App.Msg
 inboxFull model =
-    if List.all (\{ state } -> state == App.Archived) model.inbox then
+    if List.all (\{ props } -> Props.getFlag "archived" props) model.inbox then
         el [ Background.color Color.uiGray, width fill, height fill ] <|
             column [ centerY, spacing 20, width fill ]
                 [ el [ centerX, UI.contentFont, Font.color Color.dimmedText ] <| text "You're all done!"
@@ -179,39 +163,34 @@ getThread index model =
         |> Maybe.withDefault
             { scriptId = String.fromInt index
             , contents = []
-            , state = App.Responded { archivable = False }
-            , starred = False
-            , size = -1024
+            , state = App.Waiting
+            , props = Props.empty
             }
 
 
 threadPreview : App.Model -> Int -> App.ActiveThread -> Maybe (Element App.Msg)
-threadPreview model inboxIndex { scriptId, contents, state, starred, size } =
-    if state == App.Archived then
+threadPreview model inboxIndex { scriptId, contents, state, props } =
+    if Props.getFlag "archived" props then
         Nothing
 
     else
         let
-            ( weight, bgColor, important ) =
-                case state of
-                    App.Unread { responseOptions } ->
-                        ( Font.bold, Color.white, Util.choose (List.length responseOptions > 0) Assets.importantYes Assets.importantNo )
+            important =
+                Util.choose (Props.getFlag "important" props) Assets.importantYes Assets.importantNo
 
-                    App.Unresponded { responseOptions } ->
-                        ( Font.regular, Color.uiLightGray, Util.choose (List.length responseOptions > 0) Assets.importantYes Assets.importantNo )
+            ( weight, bgColor ) =
+                if Props.getFlag "unread" props then
+                    ( Font.bold, Color.white )
 
-                    App.Responded _ ->
-                        ( Font.regular, Color.uiLightGray, Assets.importantNo )
-
-                    App.Archived ->
-                        ( Font.regular, Color.uiLightGray, Assets.importantNo )
+                else
+                    ( Font.regular, Color.uiLightGray )
 
             location =
                 { scriptId = scriptId, inboxIndex = inboxIndex }
         in
         row
             [ width fill, height UI.threadHeight, Background.color bgColor ]
-            [ el [ width UI.leftBuffer1, centerY, Events.onClick (App.ToggleStar scriptId) ] (el [ centerX ] (Element.html (Util.choose starred Assets.starYes Assets.starNo)))
+            [ el [ width UI.leftBuffer1, centerY, Events.onClick (App.SetFlag { thread = scriptId, key = "starred", value = not <| Props.getFlag "starred" props }) ] (el [ centerX ] (Element.html (Util.choose (Props.getFlag "starred" props) Assets.starYes Assets.starNo)))
             , el [ width UI.leftBuffer2, centerY ] (el [ centerX ] (Element.html important))
             , row [ width fill, height fill, pointer, Events.onClick (App.NavPushUrl ("/k/inbox/" ++ location.scriptId)), UI.contentFont ]
                 [ el
@@ -223,7 +202,7 @@ threadPreview model inboxIndex { scriptId, contents, state, starred, size } =
                     (el [ centerY ] (getScript scriptId model |> .subject |> text))
                 , el
                     [ weight, width (px 150), height fill ]
-                    (el [ centerY, Element.alignRight, UI.uiFont ] (text (prettySize size)))
+                    (el [ centerY, Element.alignRight, UI.uiFont ] (text (prettySize (Props.getInt "size" props))))
                 , el [ width UI.rightBuffer, height UI.threadHeight, Element.alignRight ] Element.none
                 ]
             ]
@@ -313,17 +292,17 @@ threadFull model { inboxIndex, scriptId } =
                 ]
             :: (List.map (viewEmail model) thread.contents |> List.intersperse UI.separator)
             ++ [ case thread.state of
-                    App.Unresponded { responseOptions, currentlySelectedOptionIndex } ->
-                        suggestionPicker model responseOptions currentlySelectedOptionIndex
+                    App.Ready { responseOptions } ->
+                        suggestionPicker model scriptId thread.props responseOptions
 
-                    _ ->
+                    App.Waiting ->
                         none
                ]
         )
 
 
-suggestionButton : Bool -> Int -> Markup -> Element App.Msg
-suggestionButton selected suggestionIndex shortMessage =
+suggestionButton : String -> Bool -> Int -> Markup -> Element App.Msg
+suggestionButton scriptId selected suggestionIndex shortMessage =
     let
         ( fontColor, backgroundColor, borderColor ) =
             if selected then
@@ -335,7 +314,7 @@ suggestionButton selected suggestionIndex shortMessage =
     row
         [ Font.color fontColor
         , Background.color backgroundColor
-        , Events.onClick (App.ToggleSuggestion suggestionIndex)
+        , Events.onClick (App.SetMaybeIntProp { thread = scriptId, key = "selection", value = Util.choose selected Nothing (Just suggestionIndex) })
         , Border.color borderColor
         , Border.solid
         , Border.width 1
@@ -347,8 +326,13 @@ suggestionButton selected suggestionIndex shortMessage =
         (viewMarkup shortMessage)
 
 
-suggestionPicker : App.Model -> List Script.EmailResponse -> Maybe Int -> Element App.Msg
-suggestionPicker model responseOptions currentlySelectedOptionIndex =
+suggestionPicker : App.Model -> String -> Props -> List Script.EmailResponse -> Element App.Msg
+suggestionPicker model scriptId props responseOptions =
+    let
+        currentSelection =
+            Props.getMaybeInt "selection" props
+                |> Maybe.withDefault -1
+    in
     column [ width fill ]
         [ -- Selections
           row [ width fill ]
@@ -357,7 +341,8 @@ suggestionPicker model responseOptions currentlySelectedOptionIndex =
                 (List.indexedMap
                     (\suggestionIndex responseOption ->
                         suggestionButton
-                            (currentlySelectedOptionIndex == Just suggestionIndex)
+                            scriptId
+                            (currentSelection == suggestionIndex)
                             suggestionIndex
                             responseOption.shortText
                     )
@@ -365,26 +350,26 @@ suggestionPicker model responseOptions currentlySelectedOptionIndex =
                 )
             ]
         , -- Contents of selected email
-          List.getAt (currentlySelectedOptionIndex |> Maybe.withDefault -1) responseOptions
-            |> Maybe.map (viewEmailResponse model)
+          List.getAt currentSelection responseOptions
+            |> Maybe.map (viewEmailResponse model scriptId currentSelection)
             |> Maybe.withDefault none
         ]
 
 
-getFrom : App.Model -> Storage -> Script.AddressbookEntry
+getFrom : App.Model -> Props -> Script.AddressbookEntry
 getFrom model =
-    Storage.getString "from"
+    Props.getString "from"
         >> getAddressBookEntry model
 
 
-getTo : App.Model -> Storage -> List Script.AddressbookEntry
+getTo : App.Model -> Props -> List Script.AddressbookEntry
 getTo model =
-    Storage.getStrings "to"
+    Props.getStrings "to"
         >> List.map (getAddressBookEntry model)
 
 
-viewEmailResponse : App.Model -> Script.EmailResponse -> Element App.Msg
-viewEmailResponse model emailResponse =
+viewEmailResponse : App.Model -> String -> Int -> Script.EmailResponse -> Element App.Msg
+viewEmailResponse model scriptId index emailResponse =
     column [ width fill ]
         [ el [ height UI.responseSeparator ] none
         , row [ width fill ]
@@ -401,7 +386,7 @@ viewEmailResponse model emailResponse =
                     [ viewResponse "TO:" (getTo model emailResponse.email.props)
                     , viewEmailContents emailResponse.email.contents
                     , UI.separator
-                    , toolbarButton True "→" "Send" (Just App.SelectSuggestion)
+                    , toolbarButton True "→" "Send" (Just <| App.Select scriptId index)
                     ]
                 )
             , el [ width UI.rightBuffer ] none
