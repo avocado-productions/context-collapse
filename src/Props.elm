@@ -1,5 +1,5 @@
 module Props exposing
-    ( Props, Key, empty, emptyLog, emptyAbort
+    ( Props, Key, emptyLog, emptyAbort
     , expectFlag, getFlag, setFlag
     , expectMaybeBool, getMaybeBool, setMaybeBool
     , expectInt, getInt, setInt
@@ -7,6 +7,7 @@ module Props exposing
     , expectString, getString, setString
     , expectStrings, getStrings, addString, setStrings
     , expectMaybeString, getMaybeString, setMaybeString
+    , emptySilent
     )
 
 {-| Flexible but persnickety dynamically typed key-value maps.
@@ -401,7 +402,7 @@ reportInvalidGet function key stored expected (Props props) =
                     ++ " but there was no value associated with that key."
 
             Just storedValue ->
-                if typesMatch storedValue expected && initialized storedValue then
+                if typesMatch storedValue expected && not (initialized storedValue) then
                     "I needed to get the "
                         ++ toStringBrief expected
                         ++ " associated with the key "
@@ -454,8 +455,8 @@ type alias Key =
 {-| An empty `Props` object. All `Props` that derive from this
 empty object will silently return garbage if they are corrupted.
 -}
-empty : Props
-empty =
+emptySilent : Props
+emptySilent =
     Props { dict = Dict.empty, log = \_ _ -> (), broken = False }
 
 
@@ -465,23 +466,29 @@ emptyLog : { log : String -> String -> String } -> Props
 emptyLog { log } =
     Props
         { dict = Dict.empty
-        , log = \x y -> (\_ -> ()) (log x y)
+        , log = \x y -> (\_ -> ()) (log ("In function " ++ x) y)
         , broken = False
         }
 
 
 butFirst : a -> b -> b
-butFirst x y =
-    y
+butFirst _ x =
+    x
 
 
 {-| An empty `Props` object that will terminate the program instead of returning garbage if `Debug.todo` is passed as input.
 -}
-emptyAbort : { todo : String -> () } -> Props
+emptyAbort : { todo : String -> Never } -> Props
 emptyAbort { todo } =
     Props
         { dict = Dict.empty
-        , log = \x y -> todo ("error in " ++ x ++ ":\n" ++ y)
+        , log =
+            \x y ->
+                let
+                    _ =
+                        todo ("In function " ++ x ++ ":\n" ++ y)
+                in
+                ()
         , broken = False
         }
 
@@ -1037,9 +1044,12 @@ getStrings key (Props props) =
                 value
 
             stored ->
+                let
+                    () =
+                        reportInvalidGet "getStrings" key stored (Strings NotInitialized) (Props props)
+                in
                 -- answer is undefined
                 [ "ERROR", "RETURNED", "FROM", "GETSTRING", key ]
-                    |> butFirst (reportInvalidGet "getStrings" key stored (Strings NotInitialized) (Props props))
 
 
 {-| Sets the value associated with `key`. This must be identential to the the type of all values
@@ -1085,7 +1095,7 @@ new value to the beginning of that list.
 -}
 addString : Key -> String -> Props -> Props
 addString key value props =
-    setStrings key (value :: getStrings value props) props
+    setStrings key (value :: getStrings key props) props
 
 
 {-| Without specifying a value for the `key`, force the `Props` to only

@@ -5,6 +5,7 @@ import Assets
 import Browser exposing (Document)
 import Color
 import Dict
+import Dict.Extra as Dict
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -16,19 +17,25 @@ import List.Extra as List
 import Markup exposing (Markup)
 import Message exposing (Message)
 import Props exposing (Props)
-import Script as Script
+import Props2 as Props
+import Script
 import UI
 import Util
 
 
 view : App.Model -> Document App.Msg
 view model =
+    let
+        openThread =
+            Dict.find (\_ thread -> Props.getFlag "open" thread.props) model.threads
+                |> Maybe.map Tuple.second
+    in
     { title =
         case model.state of
             App.InboxOpen ->
                 let
                     unread =
-                        model.inbox
+                        getOrderedInbox model
                             |> List.filter (\{ props } -> Props.getFlag "unread" props)
                             |> List.length
                 in
@@ -38,10 +45,10 @@ view model =
                 else
                     "Inbox (" ++ String.fromInt unread ++ ") - " ++ model.script.me.email ++ " - AvoComm"
 
-            App.ThreadOpen { location } ->
+            App.ThreadOpen { threadId } ->
                 let
                     script =
-                        getScript location.scriptId model
+                        getScript threadId model
                 in
                 script.subject ++ " - " ++ model.script.me.email ++ " - AvoComm"
     , body =
@@ -57,22 +64,27 @@ view model =
                     [ el [ width fill, height UI.threadHeight ] <|
                         none
                     , el [ width UI.threadHeight, height UI.threadHeight ] <|
-                        toolbar model
+                        toolbar model openThread
                     , el [ width fill, height (px 10) ] <|
                         none
                     , el [ width fill, height (px 1), Background.color Color.uiGray ] <|
                         none
                     , el [ width fill, height fill, scrollbarY ] <|
-                        case model.state of
-                            App.InboxOpen ->
-                                inboxFull model
+                        case openThread of
+                            Nothing ->
+                                viewAllThreadsInInbox model
 
-                            App.ThreadOpen { location } ->
-                                threadFull model location
+                            Just thread ->
+                                viewSingleThread model thread
                     ]
                 ]
         ]
     }
+
+
+getOrderedInbox : App.Model -> List App.ActiveThread
+getOrderedInbox model =
+    List.filterMap (\{ threadId } -> Dict.get threadId model.threads) model.inbox
 
 
 toolbarButton : Bool -> String -> String -> Maybe msg -> Element msg
@@ -104,21 +116,18 @@ toolbarButton emphasize symbol desc action =
         ]
 
 
-toolbar : App.Model -> Element App.Msg
-toolbar model =
-    case model.state of
-        App.InboxOpen ->
+toolbar : App.Model -> Maybe App.ActiveThread -> Element App.Msg
+toolbar model openThread =
+    case openThread of
+        Nothing ->
             row []
                 [ toolbarButton False "⟳" "Refresh" (Just App.DoNothing) ]
 
-        App.ThreadOpen { location } ->
+        Just thread ->
             let
-                thread =
-                    getThread location.inboxIndex model
-
                 archive =
                     if Props.getFlag "archivable" thread.props then
-                        toolbarButton False "↓" "Archive" (Just (App.SetFlag { thread = thread.scriptId, key = "archived", value = True }))
+                        toolbarButton False "↓" "Archive" (Just (App.Archive { threadId = thread.threadId }))
 
                     else
                         toolbarButton False "↓" "Archive" Nothing
@@ -129,9 +138,9 @@ toolbar model =
                 ]
 
 
-inboxFull : App.Model -> Element App.Msg
-inboxFull model =
-    if List.all (\{ props } -> Props.getFlag "archived" props) model.inbox then
+viewAllThreadsInInbox : App.Model -> Element App.Msg
+viewAllThreadsInInbox model =
+    if Dict.values model.threads |> List.all (\{ props } -> Props.getFlag "archived" props) then
         el [ Background.color Color.uiGray, width fill, height fill ] <|
             column [ centerY, spacing 20, width fill ]
                 [ el [ centerX, UI.contentFont, Font.color Color.dimmedText ] <| text "You're all done!"
@@ -141,7 +150,8 @@ inboxFull model =
     else
         column [ Background.color Color.uiGray, spacing 1, width fill, height fill ] <|
             (model.inbox
-                |> List.indexedMap (threadPreview model)
+                |> List.filterMap (\{ threadId } -> Dict.get threadId model.threads)
+                |> List.map (threadPreview model)
                 |> List.filterMap identity
             )
 
@@ -157,26 +167,29 @@ getScript needle model =
             }
 
 
-getThread : Int -> App.Model -> App.ActiveThread
-getThread index model =
-    List.getAt index model.inbox
+getThread : String -> App.Model -> App.ActiveThread
+getThread threadId model =
+    Dict.get threadId model.threads
         |> Maybe.withDefault
-            { scriptId = String.fromInt index
+            { threadId = threadId
             , contents = []
             , state = App.Waiting
             , props = Props.empty
             }
 
 
-threadPreview : App.Model -> Int -> App.ActiveThread -> Maybe (Element App.Msg)
-threadPreview model inboxIndex { scriptId, contents, state, props } =
+threadPreview : App.Model -> App.ActiveThread -> Maybe (Element App.Msg)
+threadPreview model { threadId, contents, state, props } =
     if Props.getFlag "archived" props then
         Nothing
 
     else
         let
             important =
-                Util.choose (Props.getFlag "important" props) Assets.importantYes Assets.importantNo
+                Props.getMaybeBool "important" props
+                    |> Maybe.withDefault False
+                    -- TODO
+                    |> Util.choose Assets.importantYes Assets.importantNo
 
             ( weight, bgColor ) =
                 if Props.getFlag "unread" props then
@@ -184,22 +197,19 @@ threadPreview model inboxIndex { scriptId, contents, state, props } =
 
                 else
                     ( Font.regular, Color.uiLightGray )
-
-            location =
-                { scriptId = scriptId, inboxIndex = inboxIndex }
         in
         row
             [ width fill, height UI.threadHeight, Background.color bgColor ]
-            [ el [ width UI.leftBuffer1, centerY, Events.onClick (App.SetFlag { thread = scriptId, key = "starred", value = not <| Props.getFlag "starred" props }) ] (el [ centerX ] (Element.html (Util.choose (Props.getFlag "starred" props) Assets.starYes Assets.starNo)))
+            [ el [ width UI.leftBuffer1, centerY, Events.onClick (App.SetFlag { threadId = threadId, key = "starred", value = not <| Props.getFlag "starred" props }) ] (el [ centerX ] (Element.html (Props.getFlag "starred" props |> Util.choose Assets.starYes Assets.starNo)))
             , el [ width UI.leftBuffer2, centerY ] (el [ centerX ] (Element.html important))
-            , row [ width fill, height fill, pointer, Events.onClick (App.NavPushUrl ("/k/inbox/" ++ location.scriptId)), UI.contentFont ]
+            , row [ width fill, height fill, pointer, Events.onClick (App.NavPushUrl ("/k/inbox/" ++ threadId)), UI.contentFont ]
                 [ el
                     [ weight, width (px 230), height fill, clipX ]
                     (el [ centerY ] (text <| getThreadParticipants model contents))
                 , el [ width (px 20) ] none
                 , el
                     [ weight, width fill, height fill ]
-                    (el [ centerY ] (getScript scriptId model |> .subject |> text))
+                    (el [ centerY ] (getScript threadId model |> .subject |> text))
                 , el
                     [ weight, width (px 150), height fill ]
                     (el [ centerY, Element.alignRight, UI.uiFont ] (text (prettySize (Props.getInt "size" props))))
@@ -275,14 +285,11 @@ getThreadParticipants model emails =
 -}
 
 
-threadFull : App.Model -> App.ThreadLocation -> Element App.Msg
-threadFull model { inboxIndex, scriptId } =
+viewSingleThread : App.Model -> App.ActiveThread -> Element App.Msg
+viewSingleThread model thread =
     let
         script =
-            getScript scriptId model
-
-        thread =
-            getThread inboxIndex model
+            getScript thread.threadId model
     in
     column [ width fill, height fill, spacing 20 ]
         (el [ height (px 10) ] Element.none
@@ -293,7 +300,7 @@ threadFull model { inboxIndex, scriptId } =
             :: (List.map (viewEmail model) thread.contents |> List.intersperse UI.separator)
             ++ [ case thread.state of
                     App.Ready { responseOptions } ->
-                        suggestionPicker model scriptId thread.props responseOptions
+                        suggestionPicker model thread.threadId thread.props responseOptions
 
                     App.Waiting ->
                         none
@@ -302,7 +309,7 @@ threadFull model { inboxIndex, scriptId } =
 
 
 suggestionButton : String -> Bool -> Int -> Markup -> Element App.Msg
-suggestionButton scriptId selected suggestionIndex shortMessage =
+suggestionButton threadId selected suggestionIndex shortMessage =
     let
         ( fontColor, backgroundColor, borderColor ) =
             if selected then
@@ -314,7 +321,7 @@ suggestionButton scriptId selected suggestionIndex shortMessage =
     row
         [ Font.color fontColor
         , Background.color backgroundColor
-        , Events.onClick (App.SetMaybeIntProp { thread = scriptId, key = "selection", value = Util.choose selected Nothing (Just suggestionIndex) })
+        , Events.onClick (App.SetMaybeIntProp { threadId = threadId, key = "selection", value = selected |> Util.choose Nothing (Just suggestionIndex) })
         , Border.color borderColor
         , Border.solid
         , Border.width 1
@@ -327,7 +334,7 @@ suggestionButton scriptId selected suggestionIndex shortMessage =
 
 
 suggestionPicker : App.Model -> String -> Props -> List Script.EmailResponse -> Element App.Msg
-suggestionPicker model scriptId props responseOptions =
+suggestionPicker model threadId props responseOptions =
     let
         currentSelection =
             Props.getMaybeInt "selection" props
@@ -341,7 +348,7 @@ suggestionPicker model scriptId props responseOptions =
                 (List.indexedMap
                     (\suggestionIndex responseOption ->
                         suggestionButton
-                            scriptId
+                            threadId
                             (currentSelection == suggestionIndex)
                             suggestionIndex
                             responseOption.shortText
@@ -351,25 +358,25 @@ suggestionPicker model scriptId props responseOptions =
             ]
         , -- Contents of selected email
           List.getAt currentSelection responseOptions
-            |> Maybe.map (viewEmailResponse model scriptId currentSelection)
+            |> Maybe.map (viewEmailResponse model threadId currentSelection)
             |> Maybe.withDefault none
         ]
 
 
 getFrom : App.Model -> Props -> Script.AddressbookEntry
-getFrom model =
-    Props.getString "from"
-        >> getAddressBookEntry model
+getFrom model props =
+    Props.getString "from" props
+        |> getAddressBookEntry model
 
 
 getTo : App.Model -> Props -> List Script.AddressbookEntry
-getTo model =
-    Props.getStrings "to"
-        >> List.map (getAddressBookEntry model)
+getTo model props =
+    Props.getStrings "to" props
+        |> List.map (getAddressBookEntry model)
 
 
 viewEmailResponse : App.Model -> String -> Int -> Script.EmailResponse -> Element App.Msg
-viewEmailResponse model scriptId index emailResponse =
+viewEmailResponse model threadId index emailResponse =
     column [ width fill ]
         [ el [ height UI.responseSeparator ] none
         , row [ width fill ]
@@ -386,7 +393,7 @@ viewEmailResponse model scriptId index emailResponse =
                     [ viewResponse "TO:" (getTo model emailResponse.email.props)
                     , viewEmailContents emailResponse.email.contents
                     , UI.separator
-                    , toolbarButton True "→" "Send" (Just <| App.Select scriptId index)
+                    , toolbarButton True "→" "Send" (Just <| App.Select threadId index)
                     ]
                 )
             , el [ width UI.rightBuffer ] none

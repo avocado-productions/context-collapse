@@ -1,19 +1,22 @@
-module App exposing (ActiveThread, ActiveThreadState(..), InboxState(..), Model, Msg(..), ThreadLocation)
+module App exposing (ActiveThread, emptyProps, ActiveThreadState(..), InboxState(..), Model, Msg(..))
 
 {- Types used by the runtime. -}
 
 import Browser
 import Browser.Navigation
+import Dict exposing (Dict)
 import Message exposing (Message)
-import Script exposing (Script)
 import Props exposing (Props)
+import Props2 as Props
+import Script exposing (Script)
 import Url exposing (Url)
 
 
 type alias Model =
-    { blocked : Maybe { scriptId : String, next : String }
+    { blocked : List { threadId : String, next : String, delay : Int }
     , script : Script
-    , inbox : List ActiveThread
+    , threads : Dict String ActiveThread
+    , inbox : List { threadId : String }
     , state : InboxState
     , navKey : Browser.Navigation.Key
     }
@@ -24,23 +27,18 @@ type Msg
     | NavPushUrl String
     | NavBack
     | OpenInbox
-    | OpenThread ThreadLocation
-    | SetFlag { thread : String, key : String, value : Bool }
-    | SetMaybeIntProp { thread : String, key : String, value : Maybe Int }
+    | OpenThread { threadId : String }
+    | Archive { threadId : String }
+    | SetFlag { threadId : String, key : String, value : Bool }
+    | SetMaybeIntProp { threadId : String, key : String, value : Maybe Int }
     | Select String Int
     | OnUrlChange Url
     | OnUrlRequest Browser.UrlRequest
 
 
 type InboxState
-    = ThreadOpen { location : ThreadLocation }
+    = ThreadOpen { threadId : String }
     | InboxOpen
-
-
-type alias ThreadLocation =
-    { inboxIndex : Int
-    , scriptId : String
-    }
 
 
 {-| ActiveThread props:
@@ -53,14 +51,25 @@ type alias ThreadLocation =
   - importantSetByUser (flag)
   - unread (flag)
   - selection (maybe int)
+  - open (flag)
 
 -}
 type alias ActiveThread =
-    { scriptId : String
+    { threadId : String
     , contents : List Message
     , state : ActiveThreadState
     , props : Props
     }
+
+emptyProps =
+    Props.empty
+        |> Props.expectFlag "archivable"
+        |> Props.expectFlag "archived"
+        |> Props.expectInt "size"
+        |> Props.expectFlag "starred"
+        |> Props.expectMaybeBool "important"
+        |> Props.expectFlag "unread"
+        |> Props.expectMaybeInt "selection"
 
 
 type ActiveThreadState

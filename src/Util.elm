@@ -1,8 +1,8 @@
 module Util exposing (choose)
 
 
-choose : Bool -> c -> c -> c
-choose b x y =
+choose : c -> c -> Bool -> c
+choose x y b =
     if b then
         x
 

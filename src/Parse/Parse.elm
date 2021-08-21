@@ -13,6 +13,7 @@ import Markup exposing (Markup)
 import Maybe.Extra as Maybe
 import Message exposing (Message)
 import Props exposing (Props)
+import Props2 as Props
 import Result.Extra as Result
 import Script exposing (Script)
 import Set
@@ -20,7 +21,7 @@ import Set
 
 emptyMessageProps : Props
 emptyMessageProps =
-    Props.emptyAbort { todo = Debug.todo }
+    Props.empty
         |> Props.expectString "from"
         |> Props.expectStrings "to"
         |> Props.expectInt "size"
@@ -290,7 +291,7 @@ convertSection contacts { level, label, contents } =
             )
 
 
-convertActionParameters : Dict String Script.AddressbookEntry -> Bool -> List (Loc Camp.Parameter) -> Result String { spawn : List (Loc String), next : Maybe (Loc String), to : Props }
+convertActionParameters : Dict String Script.AddressbookEntry -> Bool -> List (Loc Camp.Parameter) -> Result String { spawn : List (Loc String), next : Maybe (Loc String), props : Props }
 convertActionParameters addressBook hasTo parameters =
     resultFold
         (\parameter accum ->
@@ -299,7 +300,7 @@ convertActionParameters addressBook hasTo parameters =
                     case Dict.get ident addressBook of
                         Just _ ->
                             if hasTo then
-                                Ok { accum | to = Props.addString "to" ident accum.to }
+                                Ok { accum | to = ident :: accum.to }
 
                             else
                                 Err ("Did not expect `|> to` parameters in this command (line " ++ String.fromInt loc.start.line ++ ")")
@@ -338,13 +339,13 @@ convertActionParameters addressBook hasTo parameters =
                     in
                     Err ("Only expected " ++ expected ++ " parameters, not `|> " ++ param ++ "` (line " ++ String.fromInt loc.start.line ++ ")")
         )
-        { spawn = [], trigger = Nothing, to = Props.empty }
+        { spawn = [], trigger = Nothing, to = [] }
         parameters
         |> Result.map
             (\{ spawn, trigger, to } ->
                 { next = trigger
                 , spawn = List.reverse spawn
-                , to = to
+                , props = emptyMessageProps |> Props.setStrings "to" to
                 }
             )
 
@@ -467,12 +468,12 @@ convertEmailElement contacts element accum =
                                     convertEmailResponse response
                     in
                     Result.map3
-                        (\shortResponse emailResponse { to, next, spawn } ->
+                        (\shortResponse emailResponse { props, next, spawn } ->
                             { accum
                                 | actions =
                                     Script.Respond
                                         { shortText = shortResponse
-                                        , email = { props = Props.setString "from" "Me" to, contents = emailResponse }
+                                        , email = { props = Props.setString "from" "Me" props, contents = emailResponse }
                                         , next = Maybe.map Loc.value next
                                         , spawn = List.map Loc.value spawn
                                         }
