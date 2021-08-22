@@ -91,6 +91,22 @@ getThread threadId model =
 -- UPDATE
 
 
+setFlag : { threadId : String, key : String, value : Bool } -> App.Model -> App.Model
+setFlag { threadId, key, value } model =
+    { model
+        | threads =
+            model.threads |> Dict.update threadId (Maybe.map (\thread -> { thread | props = thread.props |> Props.setFlag key value }))
+    }
+
+
+setMaybeIntProp : { threadId : String, key : String, value : Maybe Int } -> App.Model -> App.Model
+setMaybeIntProp { threadId, key, value } model =
+    { model
+        | threads =
+            model.threads |> Dict.update threadId (Maybe.map (\thread -> { thread | props = thread.props |> Props.setMaybeInt key value }))
+    }
+
+
 update : App.Msg -> App.Model -> ( App.Model, Cmd App.Msg )
 update msg model =
     case msg of
@@ -107,37 +123,26 @@ update msg model =
             { model | state = App.InboxOpen } |> Cmd.pure
 
         App.OpenThread { threadId } ->
-            { model
-                | threads =
-                    model.threads
-                        |> Dict.update threadId (Maybe.map (\thread -> { thread | props = thread.props |> Props.setFlag "unread" False }))
-                , state = App.ThreadOpen { threadId = threadId }
-            }
+            model
+                |> setFlag { threadId = threadId, key = "open", value = True  }
+                |> setFlag { threadId = threadId, key = "unread", value = False }
+                |> Cmd.with (Nav.pushUrl model.navKey ("#/k/inbox/" ++ threadId))
+
+        App.SetFlag v ->
+            model
+                |> setFlag v
                 |> Cmd.pure
 
-        App.SetFlag { threadId, key, value } ->
-            { model
-                | threads =
-                    model.threads |> Dict.update threadId (Maybe.map (\thread -> { thread | props = thread.props |> Props.setFlag key value }))
-            }
-                |> Cmd.pure
-
-        App.SetMaybeIntProp { threadId, key, value } ->
-            { model
-                | threads =
-                    model.threads |> Dict.update threadId (Maybe.map (\thread -> { thread | props = thread.props |> Props.setMaybeInt key value }))
-            }
+        App.SetMaybeIntProp v ->
+            model
+                |> setMaybeIntProp v
                 |> Cmd.pure
 
         App.Archive { threadId } ->
-            let
-                ( a, b ) =
-                    update (App.SetFlag { threadId = threadId, key = "archived", value = True }) model
-
-                ( c, d ) =
-                    update (App.SetFlag { threadId = threadId, key = "open", value = False }) a
-            in
-            ( c, Cmd.batch [ b, d ] )
+            model
+                |> setFlag { threadId = threadId, key = "archived", value = True }
+                |> setFlag { threadId = threadId, key = "open", value = False }
+                |> Cmd.with (Nav.pushUrl model.navKey "#/k/inbox/")
 
         App.Select threadId responseIndex ->
             let
