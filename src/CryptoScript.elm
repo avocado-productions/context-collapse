@@ -18,9 +18,9 @@ hashThread thread =
         , scenes = Dict.map hashScene thread.scenes
     }
 
+
 {-| Replace author-defined threadnames with hashes that one would be more likely to see in an email client
 -}
-
 hashScript : Script -> Script
 hashScript script =
     { script | threads = List.map hashThread script.threads }

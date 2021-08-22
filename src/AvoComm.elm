@@ -124,7 +124,7 @@ update msg model =
 
         App.OpenThread { threadId } ->
             model
-                |> setFlag { threadId = threadId, key = "open", value = True  }
+                |> setFlag { threadId = threadId, key = "open", value = True }
                 |> setFlag { threadId = threadId, key = "unread", value = False }
                 |> Cmd.with (Nav.pushUrl model.navKey ("#/k/inbox/" ++ threadId))
 

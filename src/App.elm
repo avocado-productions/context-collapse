@@ -1,4 +1,4 @@
-module App exposing (ActiveThread, emptyProps, ActiveThreadState(..), InboxState(..), Model, Msg(..))
+module App exposing (ActiveThread, ActiveThreadState(..), InboxState(..), Model, Msg(..), emptyProps)
 
 {- Types used by the runtime. -}
 
@@ -60,6 +60,7 @@ type alias ActiveThread =
     , state : ActiveThreadState
     , props : Props
     }
+
 
 emptyProps =
     Props.empty
