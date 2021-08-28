@@ -25,6 +25,7 @@ emptyMessageProps =
         |> Props.expectString "from"
         |> Props.expectStrings "to"
         |> Props.expectInt "size"
+        |> Props.expectPropss "attachments"
 
 
 resultFold : (a -> b -> Result x b) -> b -> List a -> Result x b
@@ -517,7 +518,7 @@ convertEmailElement contacts element accum =
                                 | actions =
                                     Script.Respond
                                         { shortText = shortResponse
-                                        , email = { props = Props.setString "from" "Me" props, contents = emailResponse }
+                                        , email = { props = Props.setString "from" "Me" (Props.setPropss "attachments" [] props), contents = emailResponse }
                                         , next = Maybe.map Loc.value next
                                         , spawn = List.map Loc.value spawn
                                         }

@@ -1401,7 +1401,7 @@ setPropss key value (P props) =
             Nothing ->
                 P { props | dict = props.dict |> Dict.insert key (Propss (Initialized value)) }
 
-            Just (Strings _) ->
+            Just (Propss _) ->
                 P { props | dict = props.dict |> Dict.insert key (Propss (Initialized value)) }
 
             Just stored ->
