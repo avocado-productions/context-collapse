@@ -4,6 +4,7 @@ import App as App exposing (Msg(..))
 import Assets
 import Browser exposing (Document)
 import Color
+import Css
 import Dict
 import Dict.Extra as Dict
 import Element exposing (..)
@@ -23,7 +24,7 @@ import UI
 import Util
 
 
-view : App.Model -> Document App.Msg
+view : App.Model -> Document App.ViewMsg
 view model =
     let
         openThread =
@@ -31,8 +32,8 @@ view model =
                 |> Maybe.map Tuple.second
     in
     { title =
-        case model.state of
-            App.InboxOpen ->
+        case openThread of
+            Nothing ->
                 let
                     unread =
                         getOrderedInbox model
@@ -45,14 +46,14 @@ view model =
                 else
                     "Inbox (" ++ String.fromInt unread ++ ") - " ++ model.script.me.email ++ " - AvoComm"
 
-            App.ThreadOpen { threadId } ->
+            Just thread ->
                 let
                     script =
-                        getScript threadId model
+                        getScript thread.threadId model
                 in
                 script.subject ++ " - " ++ model.script.me.email ++ " - AvoComm"
     , body =
-        [ Element.layout [ height fill, width fill ] <|
+        [ Element.layout [ height fill, width fill, inFront (viewAttachmentModal model) ] <|
             row [ width fill, height fill, spacing 0 ] <|
                 [ -- Left Bar
                   row [ paddingEach { top = UI.externalChromePadding, left = UI.externalChromePadding, right = 0, bottom = 0 }, width <| px UI.leftMenuWidth, height fill ]
@@ -80,6 +81,67 @@ view model =
                 ]
         ]
     }
+
+
+viewAttachmentModal : App.Model -> Element App.ViewMsg
+viewAttachmentModal model =
+    case model.attachment of
+        Nothing ->
+            none
+
+        Just attachment ->
+            let
+                thing tp =
+                    el
+                        [ transparent tp
+                        , width (fill |> maximum 600)
+                        , height fill
+                        , centerX
+                        , Background.color Color.white
+                        , padding 20
+                        ]
+                    <|
+                        column [ width fill, spacing 40 ]
+                            [ row [ width fill ]
+                                [ el [ width fill, Font.size 24, UI.contentFont ] (text (Props.getString "name" attachment))
+                                , toolbarButton False "←" "Return to email" (Just (App.Attachment Nothing))
+                                ]
+                            , image
+                                [ width fill ]
+                                { src = Props.getString "url" attachment, description = Props.getString "name" attachment }
+                            ]
+            in
+            el
+                [ width fill
+                , height fill
+                , padding 100
+                , behindContent
+                    (el
+                        [ width fill
+                        , height fill
+                        , Background.color Color.modalBackground
+                        , alpha 0.8
+                        , padding 100
+                        ]
+                        (thing True)
+                    )
+                , Events.onClick (App.Attachment Nothing)
+                , scrollbarY
+                ]
+                (thing False)
+
+
+
+{- el
+   [ width fill
+   , height fill
+   , Background.color Color.modalBackground
+   , alpha 0.8
+   , Events.onClick (App.Attachment Nothing)
+   , inFront ( )
+   ]
+   none
+-}
 
 
 getOrderedInbox : App.Model -> List App.ActiveThread
@@ -116,12 +178,12 @@ toolbarButton emphasize symbol desc action =
         ]
 
 
-toolbar : App.Model -> Maybe App.ActiveThread -> Element App.Msg
+toolbar : App.Model -> Maybe App.ActiveThread -> Element App.ViewMsg
 toolbar model openThread =
     case openThread of
         Nothing ->
             row []
-                [ toolbarButton False "⟳" "Refresh" (Just App.DoNothing) ]
+                [ toolbarButton False "⟳" "Refresh" (Just App.Refresh) ]
 
         Just thread ->
             let
@@ -133,12 +195,12 @@ toolbar model openThread =
                         toolbarButton False "↓" "Archive" Nothing
             in
             row []
-                [ toolbarButton False "←" "Return to Inbox" (Just App.NavBack)
+                [ toolbarButton False "←" "Return to Inbox" (Just App.OpenInbox)
                 , archive
                 ]
 
 
-viewAllThreadsInInbox : App.Model -> Element App.Msg
+viewAllThreadsInInbox : App.Model -> Element App.ViewMsg
 viewAllThreadsInInbox model =
     if Dict.values model.threads |> List.all (\{ props } -> Props.getFlag "archived" props) then
         el [ Background.color Color.uiGray, width fill, height fill ] <|
@@ -149,10 +211,12 @@ viewAllThreadsInInbox model =
 
     else
         column [ Background.color Color.uiGray, spacing 1, width fill, height fill ] <|
-            (model.inbox
+            ((model.inbox
                 |> List.filterMap (\{ threadId } -> Dict.get threadId model.threads)
                 |> List.map (threadPreview model)
                 |> List.filterMap identity
+             )
+                ++ [ el [ Background.color Color.white, width fill, height (fill |> minimum UI.bottomBuffer) ] none ]
             )
 
 
@@ -178,18 +242,24 @@ getThread threadId model =
             }
 
 
-threadPreview : App.Model -> App.ActiveThread -> Maybe (Element App.Msg)
+threadPreview : App.Model -> App.ActiveThread -> Maybe (Element App.ViewMsg)
 threadPreview model { threadId, contents, state, props } =
     if Props.getFlag "archived" props then
         Nothing
 
     else
         let
+            defaultImportant =
+                case state of
+                    App.Waiting ->
+                        False
+
+                    App.Ready { responseOptions } ->
+                        responseOptions /= []
+
             important =
                 Props.getMaybeBool "important" props
-                    |> Maybe.withDefault False
-                    -- TODO
-                    |> Util.choose Assets.importantYes Assets.importantNo
+                    |> Maybe.withDefault defaultImportant
 
             ( weight, bgColor ) =
                 if Props.getFlag "unread" props then
@@ -200,9 +270,9 @@ threadPreview model { threadId, contents, state, props } =
         in
         row
             [ width fill, height UI.threadHeight, Background.color bgColor ]
-            [ el [ width UI.leftBuffer1, centerY, Events.onClick (App.SetFlag { threadId = threadId, key = "starred", value = not <| Props.getFlag "starred" props }) ] (el [ centerX ] (Element.html (Props.getFlag "starred" props |> Util.choose Assets.starYes Assets.starNo)))
-            , el [ width UI.leftBuffer2, centerY ] (el [ centerX ] (Element.html important))
-            , row [ width fill, height fill, pointer, Events.onClick (App.NavPushUrl ("/k/inbox/" ++ threadId)), UI.contentFont ]
+            [ el [ width UI.leftBuffer1, centerY, Events.onClick (App.Star { threadId = threadId, value = not <| Props.getFlag "starred" props }) ] (el [ centerX ] (Element.html (Props.getFlag "starred" props |> Util.choose Assets.starYes Assets.starNo)))
+            , el [ width UI.leftBuffer2, centerY, Events.onClick (App.Important { threadId = threadId, value = not important }) ] (el [ centerX ] (Element.html (important |> Util.choose Assets.importantYes Assets.importantNo)))
+            , row [ width fill, height fill, pointer, Events.onClick (App.OpenThread { threadId = threadId }), UI.contentFont ]
                 [ el
                     [ weight, width (px 230), height fill, clipX ]
                     (el [ centerY ] (text <| getThreadParticipants model contents))
@@ -246,8 +316,7 @@ getAddressBookEntry { script } id =
 
 getThreadParticipants : App.Model -> List Message -> String
 getThreadParticipants model emails =
-    List.map (\{ props } -> getFrom model props :: getTo model props) emails
-        |> List.concat
+    List.map (\{ props } -> getFrom model props) emails
         |> List.uniqueBy .full
         |> List.map
             (\addressbookEntry ->
@@ -285,7 +354,7 @@ getThreadParticipants model emails =
 -}
 
 
-viewSingleThread : App.Model -> App.ActiveThread -> Element App.Msg
+viewSingleThread : App.Model -> App.ActiveThread -> Element App.ViewMsg
 viewSingleThread model thread =
     let
         script =
@@ -308,7 +377,7 @@ viewSingleThread model thread =
         )
 
 
-suggestionButton : String -> Bool -> Int -> Markup -> Element App.Msg
+suggestionButton : String -> Bool -> Int -> Markup -> Element App.ViewMsg
 suggestionButton threadId selected suggestionIndex shortMessage =
     let
         ( fontColor, backgroundColor, borderColor ) =
@@ -321,7 +390,7 @@ suggestionButton threadId selected suggestionIndex shortMessage =
     row
         [ Font.color fontColor
         , Background.color backgroundColor
-        , Events.onClick (App.SetMaybeIntProp { threadId = threadId, key = "selection", value = selected |> Util.choose Nothing (Just suggestionIndex) })
+        , Events.onClick (App.Recommendation { threadId = threadId, value = selected |> Util.choose Nothing (Just suggestionIndex) })
         , Border.color borderColor
         , Border.solid
         , Border.width 1
@@ -333,7 +402,7 @@ suggestionButton threadId selected suggestionIndex shortMessage =
         (viewMarkup shortMessage)
 
 
-suggestionPicker : App.Model -> String -> Props -> List Script.EmailResponse -> Element App.Msg
+suggestionPicker : App.Model -> String -> Props -> List Script.EmailResponse -> Element App.ViewMsg
 suggestionPicker model threadId props responseOptions =
     let
         currentSelection =
@@ -375,7 +444,7 @@ getTo model props =
         |> List.map (getAddressBookEntry model)
 
 
-viewEmailResponse : App.Model -> String -> Int -> Script.EmailResponse -> Element App.Msg
+viewEmailResponse : App.Model -> String -> Int -> Script.EmailResponse -> Element App.ViewMsg
 viewEmailResponse model threadId index emailResponse =
     column [ width fill ]
         [ el [ height UI.responseSeparator ] none
@@ -401,6 +470,42 @@ viewEmailResponse model threadId index emailResponse =
         ]
 
 
+viewAttachments : App.Model -> List Props -> Element App.ViewMsg
+viewAttachments model props =
+    if props == [] then
+        none
+
+    else
+        column [ width fill, spacing 10 ]
+            [ wrappedRow [ paddingEach { top = 20, bottom = 0, left = 0, right = 0 }, spacing 20 ] (List.map (viewAttachment model) props) ]
+
+
+viewAttachment : App.Model -> Props -> Element App.ViewMsg
+viewAttachment model props =
+    row
+        [ width (px 162)
+        , height (px 100)
+        , padding 15
+        , spacing 10
+        , Border.color Color.uiGray
+        , Border.width 1
+        , Border.rounded 5
+        , Background.color Color.white
+        , Events.onClick (App.Attachment (Just props))
+        ]
+        [ el [ alignTop ] (Element.html Assets.attachedDocument)
+        , paragraph
+            [ width fill
+            , height fill
+            , htmlAttribute (Html.Attributes.style "overflow-wrap" "break-word")
+            , htmlAttribute (Html.Attributes.style "overflow" "hidden")
+            , UI.contentFont
+            , UI.fontSmall
+            ]
+            [ text (Props.getString "name" props) ]
+        ]
+
+
 viewResponse : String -> List Script.AddressbookEntry -> Element msg
 viewResponse kind records =
     case records of
@@ -416,7 +521,7 @@ toPill record =
     el [ paddingXY 10 0, height (px 22), Border.width 1, Border.rounded 10, Font.size 15, Border.color (rgb255 255 140 0), UI.contentFont ] (el [ centerY ] (text record.full))
 
 
-viewEmailContents : List Message.Element -> Element App.Msg
+viewEmailContents : List Message.Element -> Element App.ViewMsg
 viewEmailContents elements =
     column [ width fill, spacing 10 ] <|
         List.map
@@ -456,7 +561,7 @@ viewStyle { bold, italic, strike } =
            )
 
 
-viewMarkup : Markup -> List (Element App.Msg)
+viewMarkup : Markup -> List (Element App.ViewMsg)
 viewMarkup =
     List.map
         (\element ->
@@ -475,7 +580,7 @@ viewMarkup =
 -- text >> List.singleton >> paragraph [ UI.contentFont ]
 
 
-viewEmail : App.Model -> Message -> Element App.Msg
+viewEmail : App.Model -> Message -> Element App.ViewMsg
 viewEmail model email =
     let
         to =
@@ -496,6 +601,7 @@ viewEmail model email =
                 ]
             , row [ Font.size 15, Font.color Color.dimmedText, spacing 4 ] [ el [ UI.uiFont ] (text "TO:"), el [ UI.contentFont ] (text to) ]
             , viewEmailContents email.contents
+            , viewAttachments model (Props.getPropss "attachments" email.props)
             ]
-        , el [ width UI.rightBuffer ] none
+        , el [ width UI.rightBuffer, height (px UI.bottomBuffer) ] none
         ]

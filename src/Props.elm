@@ -1,13 +1,14 @@
 module Props exposing
-    ( Props, Key, emptyLog, emptyAbort
+    ( Props, Key, emptySilent, emptyLog, emptyAbort
     , expectFlag, getFlag, setFlag
     , expectMaybeBool, getMaybeBool, setMaybeBool
     , expectInt, getInt, setInt
     , expectMaybeInt, getMaybeInt, setMaybeInt
     , expectString, getString, setString
-    , expectStrings, getStrings, addString, setStrings
+    , expectStrings, getStrings, setStrings
     , expectMaybeString, getMaybeString, setMaybeString
-    , emptySilent
+    , expectProps, getProps, setProps
+    , expectPropss, getPropss, setPropss
     )
 
 {-| Flexible but persnickety dynamically typed key-value maps.
@@ -96,7 +97,7 @@ write at the wrong type.
 
 # Creating `Props`
 
-@docs Props, Key, empty, emptyLog, emptyAbort
+@docs Props, Key, emptySilent, emptyLog, emptyAbort
 
 
 # Flags
@@ -145,7 +146,7 @@ setters for any other type, including `List String` and `Maybe String`.
 Keys associated with the type `List String` cannot be used with getters or
 setters for any other type, including `String` and `Maybe String`.
 
-@docs expectStrings, getStrings, addString, setStrings
+@docs expectStrings, getStrings, setStrings
 
 
 ## Optional Strings
@@ -155,9 +156,41 @@ setters for any other type, including `String` and `List String`.
 
 @docs expectMaybeString, getMaybeString, setMaybeString
 
+
+# Props
+
+You can make more complex structures by having `Props` that contain `Props`.
+
+@docs expectProps, getProps, setProps
+
+
+## Lists of Props
+
+Keys associated with the type `List Props` cannot be used with getters or
+setters for any other type, including `Props`.
+
+@docs expectPropss, getPropss, setPropss
+
 -}
 
 import Dict exposing (Dict)
+
+
+{-| A `Props` object is a map from keys (strings) to values.
+-}
+type Props
+    = P
+        { dict : Dict String Value
+        , log : Props -> String -> String -> ()
+        , broken : Bool
+        }
+
+
+{-| The props object is accessed with keys (which are just strings).
+The key is always the first argument.
+-}
+type alias Key =
+    String
 
 
 type Initializable a
@@ -174,19 +207,38 @@ type Value
     | String (Initializable String)
     | Strings (Initializable (List String))
     | MaybeString (Initializable (Maybe String))
+    | Props (Initializable Props)
+    | Propss (Initializable (List Props))
 
 
 explain : Value -> String
 explain value =
     if initialized value then
-        "contained " ++ toStringFull value
+        "contained " ++ valueToString value
 
     else
-        "expected to store values of type " ++ toStringBrief value
+        "expected to store values of type " ++ valueToTypeString value
 
 
-toStringFull : Value -> String
-toStringFull value =
+toString : Props -> String
+toString (P props) =
+    ""
+        ++ (if props.broken then
+                "NONSENSE (the props object had previously been corrupted)\nIf you don't like that answer, fine, I could also say it contained "
+
+            else
+                ""
+           )
+        ++ (if Dict.size props.dict == 0 then
+                " nothing"
+
+            else
+                "\n" ++ (props.dict |> Dict.toList |> List.map (\( k, v ) -> "   " ++ k ++ ": " ++ valueToString v) |> List.intersperse "\n" |> String.concat)
+           )
+
+
+valueToString : Value -> String
+valueToString value =
     case value of
         Bool NotInitialized ->
             "an uninitialized Bool (Flag)"
@@ -252,6 +304,28 @@ toStringFull value =
         MaybeString (Initialized (Just str)) ->
             "Just \"" ++ str ++ "\""
 
+        Props NotInitialized ->
+            "an uninitialized props object"
+
+        Props (Initialized _) ->
+            -- TODO print this out in more detail?
+            "a props object"
+
+        Propss NotInitialized ->
+            "an uninitialized list of props objects"
+
+        Propss (Initialized ps) ->
+            -- TODO print this out in more detail?
+            "a list containing "
+                ++ String.fromInt (List.length ps)
+                ++ " props object"
+                ++ (if List.length ps == 1 then
+                        ""
+
+                    else
+                        "s"
+                   )
+
 
 initialized : Value -> Bool
 initialized value =
@@ -278,6 +352,12 @@ initialized value =
             init /= NotInitialized
 
         MaybeString init ->
+            init /= NotInitialized
+
+        Props init ->
+            init /= NotInitialized
+
+        Propss init ->
             init /= NotInitialized
 
 
@@ -348,9 +428,25 @@ typesMatch v1 v2 =
                 _ ->
                     False
 
+        Props _ ->
+            case v2 of
+                Props _ ->
+                    True
 
-toStringBrief : Value -> String
-toStringBrief value =
+                _ ->
+                    False
+
+        Propss _ ->
+            case v2 of
+                Propss _ ->
+                    True
+
+                _ ->
+                    False
+
+
+valueToTypeString : Value -> String
+valueToTypeString value =
     case value of
         Bool _ ->
             "Bool (Flag)"
@@ -365,10 +461,10 @@ toStringBrief value =
             "List Int"
 
         MaybeInt _ ->
-            "MaybeInt"
+            "Maybe Int"
 
         String _ ->
-            "Int"
+            "String"
 
         Strings _ ->
             "List String"
@@ -376,14 +472,20 @@ toStringBrief value =
         MaybeString _ ->
             "Maybe String"
 
+        Props _ ->
+            "Props"
+
+        Propss _ ->
+            "List Props"
+
 
 reportInvalidExpecation : String -> String -> Value -> Value -> Props -> ()
-reportInvalidExpecation function key stored expected (Props props) =
-    props.log function <|
+reportInvalidExpecation function key stored expected (P props) =
+    props.log (P props) function <|
         "I was instructed to force the key "
             ++ key
             ++ " to have type "
-            ++ toStringBrief expected
+            ++ valueToTypeString expected
             ++ ".\n"
             ++ "However, the Props object already "
             ++ explain stored
@@ -391,12 +493,12 @@ reportInvalidExpecation function key stored expected (Props props) =
 
 
 reportInvalidGet : String -> String -> Maybe Value -> Value -> Props -> ()
-reportInvalidGet function key stored expected (Props props) =
-    props.log function <|
+reportInvalidGet function key stored expected (P props) =
+    props.log (P props) function <|
         case stored of
             Nothing ->
                 "I needed to get the "
-                    ++ toStringBrief expected
+                    ++ valueToTypeString expected
                     ++ " associated with the key "
                     ++ key
                     ++ " but there was no value associated with that key."
@@ -404,18 +506,18 @@ reportInvalidGet function key stored expected (Props props) =
             Just storedValue ->
                 if typesMatch storedValue expected && not (initialized storedValue) then
                     "I needed to get the "
-                        ++ toStringBrief expected
+                        ++ valueToTypeString expected
                         ++ " associated with the key "
                         ++ key
                         ++ " but there was no value associated with that key.\n"
                         ++ "(It's not enough to expect a "
-                        ++ toStringBrief expected
+                        ++ valueToTypeString expected
                         ++ ", a definite value must be actually set.)"
 
                 else
                     -- Must be a type mismatch
                     "I needed to get the "
-                        ++ toStringBrief expected
+                        ++ valueToTypeString expected
                         ++ " associated with the key "
                         ++ key
                         ++ ".\nHowever, the Props object already "
@@ -424,32 +526,15 @@ reportInvalidGet function key stored expected (Props props) =
 
 
 reportInvalidSet : String -> String -> Value -> Value -> Props -> ()
-reportInvalidSet function key stored added (Props props) =
-    props.log function <|
+reportInvalidSet function key stored added (P props) =
+    props.log (P props) function <|
         "I was told to associate the key "
             ++ key
             ++ " with "
-            ++ toStringFull added
+            ++ valueToString added
             ++ ".\nThe object already "
             ++ explain stored
             ++ " with this key.\nAssociating a key with two different types irrevocably corrupts the object."
-
-
-{-| A `Props` object is a map from keys (strings) to values.
--}
-type Props
-    = Props
-        { dict : Dict String Value
-        , log : String -> String -> ()
-        , broken : Bool
-        }
-
-
-{-| The props object is accessed with keys (which are just strings).
-The key is always the first argument.
--}
-type alias Key =
-    String
 
 
 {-| An empty `Props` object. All `Props` that derive from this
@@ -457,16 +542,16 @@ empty object will silently return garbage if they are corrupted.
 -}
 emptySilent : Props
 emptySilent =
-    Props { dict = Dict.empty, log = \_ _ -> (), broken = False }
+    P { dict = Dict.empty, log = \_ _ _ -> (), broken = False }
 
 
 {-| An empty `Props` object that will log errors before returning garbage if passed the function `Debug.log` as an argument.
 -}
 emptyLog : { log : String -> String -> String } -> Props
 emptyLog { log } =
-    Props
+    P
         { dict = Dict.empty
-        , log = \x y -> (\_ -> ()) (log ("In function " ++ x) y)
+        , log = \props x y -> (\_ -> ()) (log ("In function " ++ x) (y ++ "\n\nBefore error, props contained" ++ toString props))
         , broken = False
         }
 
@@ -480,13 +565,13 @@ butFirst _ x =
 -}
 emptyAbort : { todo : String -> Never } -> Props
 emptyAbort { todo } =
-    Props
+    P
         { dict = Dict.empty
         , log =
-            \x y ->
+            \props x y ->
                 let
                     _ =
-                        todo ("In function " ++ x ++ ":\n" ++ y)
+                        todo ("In function " ++ x ++ ":\n" ++ y ++ "\n\nBefore error, props contained" ++ toString props)
                 in
                 ()
         , broken = False
@@ -501,25 +586,25 @@ this will have no effect.
 
 -}
 expectFlag : Key -> Props -> Props
-expectFlag key (Props props) =
+expectFlag key (P props) =
     if props.broken then
-        Props props
+        P props
 
     else
         case Dict.get key props.dict of
             Nothing ->
-                Props { props | dict = props.dict |> Dict.insert key (Bool NotInitialized) }
+                P { props | dict = props.dict |> Dict.insert key (Bool NotInitialized) }
 
             Just (Bool _) ->
-                Props props
+                P props
 
             Just stored ->
-                Props { props | broken = True }
-                    |> butFirst (reportInvalidExpecation "expectFlag" key stored (Bool NotInitialized) (Props props))
+                P { props | broken = True }
+                    |> butFirst (reportInvalidExpecation "expectFlag" key stored (Bool NotInitialized) (P props))
 
 
-{-| Get the last value associated with `key`. This flag must have previously been **set**, not merely
-initialized.
+{-| Get the value associated with `key`. This flag must have previously been **set**
+with `setFlag`, not merely declared with `expectFlag`.
 
      Props.empty
         |> Props.setFlag "pink" True
@@ -544,7 +629,7 @@ initialized.
 
 -}
 getFlag : Key -> Props -> Bool
-getFlag key (Props props) =
+getFlag key (P props) =
     if props.broken then
         -- answer is undefined
         True
@@ -557,10 +642,10 @@ getFlag key (Props props) =
             stored ->
                 -- answer is undefined
                 True
-                    |> butFirst (reportInvalidGet "getFlag" key stored (Bool NotInitialized) (Props props))
+                    |> butFirst (reportInvalidGet "getFlag" key stored (Bool NotInitialized) (P props))
 
 
-{-| Sets the value associated with `key`. This must be identential to the the type of all values
+{-| Sets the value associated with `key`. This must be identical to the the type of all values
 previously associated with `key`.
 
      Props.empty
@@ -573,21 +658,21 @@ previously associated with `key`.
 
 -}
 setFlag : Key -> Bool -> Props -> Props
-setFlag key value (Props props) =
+setFlag key value (P props) =
     if props.broken then
-        Props props
+        P props
 
     else
         case Dict.get key props.dict of
             Nothing ->
-                Props { props | dict = props.dict |> Dict.insert key (Bool (Initialized value)) }
+                P { props | dict = props.dict |> Dict.insert key (Bool (Initialized value)) }
 
             Just (Bool _) ->
-                Props { props | dict = props.dict |> Dict.insert key (Bool (Initialized value)) }
+                P { props | dict = props.dict |> Dict.insert key (Bool (Initialized value)) }
 
             Just stored ->
-                Props { props | broken = True }
-                    |> butFirst (reportInvalidSet "setFlag" key stored (Bool (Initialized value)) (Props props))
+                P { props | broken = True }
+                    |> butFirst (reportInvalidSet "setFlag" key stored (Bool (Initialized value)) (P props))
 
 
 {-| Without specifying a value for the `key`, force the `Props` to only
@@ -598,25 +683,25 @@ this will have no effect.
 
 -}
 expectMaybeBool : Key -> Props -> Props
-expectMaybeBool key (Props props) =
+expectMaybeBool key (P props) =
     if props.broken then
-        Props props
+        P props
 
     else
         case Dict.get key props.dict of
             Nothing ->
-                Props { props | dict = props.dict |> Dict.insert key (MaybeBool NotInitialized) }
+                P { props | dict = props.dict |> Dict.insert key (MaybeBool NotInitialized) }
 
             Just (MaybeBool _) ->
-                Props props
+                P props
 
             Just stored ->
-                Props { props | broken = True }
-                    |> butFirst (reportInvalidExpecation "expectMaybeBool" key stored (MaybeBool NotInitialized) (Props props))
+                P { props | broken = True }
+                    |> butFirst (reportInvalidExpecation "expectMaybeBool" key stored (MaybeBool NotInitialized) (P props))
 
 
-{-| Get the last value associated with `key`. This flag must have previously been **set**, not merely
-initialized.
+{-| Get the value associated with `key`. This key's value must have previously been **set**
+with `setMaybeBool`, not merely declared with `expectMaybeBool`.
 
      Props.empty
         |> Props.setMaybeBool "a" (Just True)
@@ -641,7 +726,7 @@ initialized.
 
 -}
 getMaybeBool : Key -> Props -> Maybe Bool
-getMaybeBool key (Props props) =
+getMaybeBool key (P props) =
     if props.broken then
         -- answer is undefined
         Just False
@@ -654,10 +739,10 @@ getMaybeBool key (Props props) =
             stored ->
                 -- answer is undefined
                 Just True
-                    |> butFirst (reportInvalidGet "getMaybeBool" key stored (MaybeBool NotInitialized) (Props props))
+                    |> butFirst (reportInvalidGet "getMaybeBool" key stored (MaybeBool NotInitialized) (P props))
 
 
-{-| Sets the value associated with `key`. This must be identential to the the type of all values
+{-| Sets the value associated with `key`. This must be identical to the the type of all values
 previously associated with `key`.
 
      Props.empty
@@ -672,21 +757,21 @@ previously associated with `key`.
 
 -}
 setMaybeBool : Key -> Maybe Bool -> Props -> Props
-setMaybeBool key value (Props props) =
+setMaybeBool key value (P props) =
     if props.broken then
-        Props props
+        P props
 
     else
         case Dict.get key props.dict of
             Nothing ->
-                Props { props | dict = props.dict |> Dict.insert key (MaybeBool (Initialized value)) }
+                P { props | dict = props.dict |> Dict.insert key (MaybeBool (Initialized value)) }
 
             Just (MaybeBool _) ->
-                Props { props | dict = props.dict |> Dict.insert key (MaybeBool (Initialized value)) }
+                P { props | dict = props.dict |> Dict.insert key (MaybeBool (Initialized value)) }
 
             Just stored ->
-                Props { props | broken = True }
-                    |> butFirst (reportInvalidSet "setMaybeBool" key stored (MaybeBool (Initialized value)) (Props props))
+                P { props | broken = True }
+                    |> butFirst (reportInvalidSet "setMaybeBool" key stored (MaybeBool (Initialized value)) (P props))
 
 
 {-| Without specifying a value for the `key`, force the `Props` to only
@@ -697,25 +782,25 @@ this will have no effect.
 
 -}
 expectInt : Key -> Props -> Props
-expectInt key (Props props) =
+expectInt key (P props) =
     if props.broken then
-        Props props
+        P props
 
     else
         case Dict.get key props.dict of
             Nothing ->
-                Props { props | dict = props.dict |> Dict.insert key (Int NotInitialized) }
+                P { props | dict = props.dict |> Dict.insert key (Int NotInitialized) }
 
             Just (Int _) ->
-                Props props
+                P props
 
             Just stored ->
-                Props { props | broken = True }
-                    |> butFirst (reportInvalidExpecation "expectInt" key stored (Int NotInitialized) (Props props))
+                P { props | broken = True }
+                    |> butFirst (reportInvalidExpecation "expectInt" key stored (Int NotInitialized) (P props))
 
 
-{-| Get the last value associated with `key`. This flag must have previously been **set**, not merely
-initialized.
+{-| Get the value associated with `key`. This key's value must have previously been **set**
+with `setInt`, not merely declared with `expectInt`.
 
      Props.empty
         |> Props.setInt "count" 77
@@ -740,7 +825,7 @@ initialized.
 
 -}
 getInt : Key -> Props -> Int
-getInt key (Props props) =
+getInt key (P props) =
     if props.broken then
         -- answer is undefined
         12345
@@ -753,10 +838,10 @@ getInt key (Props props) =
             stored ->
                 -- answer is undefined
                 99
-                    |> butFirst (reportInvalidGet "getInt" key stored (Int NotInitialized) (Props props))
+                    |> butFirst (reportInvalidGet "getInt" key stored (Int NotInitialized) (P props))
 
 
-{-| Sets the value associated with `key`. This must be identential to the the type of all values
+{-| Sets the value associated with `key`. This must be identical to the the type of all values
 previously associated with `key`.
 
      Props.empty
@@ -769,21 +854,21 @@ previously associated with `key`.
 
 -}
 setInt : Key -> Int -> Props -> Props
-setInt key value (Props props) =
+setInt key value (P props) =
     if props.broken then
-        Props props
+        P props
 
     else
         case Dict.get key props.dict of
             Nothing ->
-                Props { props | dict = props.dict |> Dict.insert key (Int (Initialized value)) }
+                P { props | dict = props.dict |> Dict.insert key (Int (Initialized value)) }
 
             Just (Int _) ->
-                Props { props | dict = props.dict |> Dict.insert key (Int (Initialized value)) }
+                P { props | dict = props.dict |> Dict.insert key (Int (Initialized value)) }
 
             Just stored ->
-                Props { props | broken = True }
-                    |> butFirst (reportInvalidSet "setInt" key stored (Int (Initialized value)) (Props props))
+                P { props | broken = True }
+                    |> butFirst (reportInvalidSet "setInt" key stored (Int (Initialized value)) (P props))
 
 
 {-| Without specifying a value for the `key`, force the `Props` to only
@@ -794,25 +879,25 @@ this will have no effect.
 
 -}
 expectMaybeInt : Key -> Props -> Props
-expectMaybeInt key (Props props) =
+expectMaybeInt key (P props) =
     if props.broken then
-        Props props
+        P props
 
     else
         case Dict.get key props.dict of
             Nothing ->
-                Props { props | dict = props.dict |> Dict.insert key (MaybeInt NotInitialized) }
+                P { props | dict = props.dict |> Dict.insert key (MaybeInt NotInitialized) }
 
             Just (MaybeInt _) ->
-                Props props
+                P props
 
             Just stored ->
-                Props { props | broken = True }
-                    |> butFirst (reportInvalidExpecation "expectMaybeInt" key stored (MaybeInt NotInitialized) (Props props))
+                P { props | broken = True }
+                    |> butFirst (reportInvalidExpecation "expectMaybeInt" key stored (MaybeInt NotInitialized) (P props))
 
 
-{-| Get the last value associated with `key`. This flag must have previously been **set**, not merely
-initialized.
+{-| Get the value associated with `key`. This key's value must have previously been **set**
+with `setMaybeInt`, not merely declared with `expectMaybeInt`.
 
      Props.empty
         |> Props.setMaybeInt "zip" (Just 10036)
@@ -837,7 +922,7 @@ initialized.
 
 -}
 getMaybeInt : Key -> Props -> Maybe Int
-getMaybeInt key (Props props) =
+getMaybeInt key (P props) =
     if props.broken then
         -- answer is undefined
         Just -491
@@ -850,10 +935,10 @@ getMaybeInt key (Props props) =
             stored ->
                 -- answer is undefined
                 Just 3333333
-                    |> butFirst (reportInvalidGet "getMaybeInt" key stored (MaybeInt NotInitialized) (Props props))
+                    |> butFirst (reportInvalidGet "getMaybeInt" key stored (MaybeInt NotInitialized) (P props))
 
 
-{-| Sets the value associated with `key`. This must be identential to the the type of all values
+{-| Sets the value associated with `key`. This must be identical to the the type of all values
 previously associated with `key`.
 
      Props.empty
@@ -868,21 +953,21 @@ previously associated with `key`.
 
 -}
 setMaybeInt : Key -> Maybe Int -> Props -> Props
-setMaybeInt key value (Props props) =
+setMaybeInt key value (P props) =
     if props.broken then
-        Props props
+        P props
 
     else
         case Dict.get key props.dict of
             Nothing ->
-                Props { props | dict = props.dict |> Dict.insert key (MaybeInt (Initialized value)) }
+                P { props | dict = props.dict |> Dict.insert key (MaybeInt (Initialized value)) }
 
             Just (MaybeInt _) ->
-                Props { props | dict = props.dict |> Dict.insert key (MaybeInt (Initialized value)) }
+                P { props | dict = props.dict |> Dict.insert key (MaybeInt (Initialized value)) }
 
             Just stored ->
-                Props { props | broken = True }
-                    |> butFirst (reportInvalidSet "setMaybeInt" key stored (MaybeInt (Initialized value)) (Props props))
+                P { props | broken = True }
+                    |> butFirst (reportInvalidSet "setMaybeInt" key stored (MaybeInt (Initialized value)) (P props))
 
 
 {-| Without specifying a value for the `key`, force the `Props` to only
@@ -893,25 +978,25 @@ this will have no effect.
 
 -}
 expectString : Key -> Props -> Props
-expectString key (Props props) =
+expectString key (P props) =
     if props.broken then
-        Props props
+        P props
 
     else
         case Dict.get key props.dict of
             Nothing ->
-                Props { props | dict = props.dict |> Dict.insert key (String NotInitialized) }
+                P { props | dict = props.dict |> Dict.insert key (String NotInitialized) }
 
             Just (String _) ->
-                Props props
+                P props
 
             Just stored ->
-                Props { props | broken = True }
-                    |> butFirst (reportInvalidExpecation "expectString" key stored (String NotInitialized) (Props props))
+                P { props | broken = True }
+                    |> butFirst (reportInvalidExpecation "expectString" key stored (String NotInitialized) (P props))
 
 
-{-| Get the last value associated with `key`. This flag must have previously been **set**, not merely
-initialized.
+{-| Get the value associated with `key`. This key's value must have previously been **set**
+with `setString`, not merely declared with `expectString`.
 
      Props.empty
         |> Props.setString "name" "Gerald"
@@ -936,7 +1021,7 @@ initialized.
 
 -}
 getString : Key -> Props -> String
-getString key (Props props) =
+getString key (P props) =
     if props.broken then
         -- answer is undefined
         "ERROR GETSTRING CALLED ON A BROKEN OBJECT"
@@ -949,10 +1034,10 @@ getString key (Props props) =
             stored ->
                 -- answer is undefined
                 "ERROR RETURNED FROM GETSTRING"
-                    |> butFirst (reportInvalidGet "getString" key stored (String NotInitialized) (Props props))
+                    |> butFirst (reportInvalidGet "getString" key stored (String NotInitialized) (P props))
 
 
-{-| Sets the value associated with `key`. This must be identential to the the type of all values
+{-| Sets the value associated with `key`. This must be identical to the the type of all values
 previously associated with `key`.
 
      Props.empty
@@ -965,21 +1050,21 @@ previously associated with `key`.
 
 -}
 setString : Key -> String -> Props -> Props
-setString key value (Props props) =
+setString key value (P props) =
     if props.broken then
-        Props props
+        P props
 
     else
         case Dict.get key props.dict of
             Nothing ->
-                Props { props | dict = props.dict |> Dict.insert key (String (Initialized value)) }
+                P { props | dict = props.dict |> Dict.insert key (String (Initialized value)) }
 
             Just (String _) ->
-                Props { props | dict = props.dict |> Dict.insert key (String (Initialized value)) }
+                P { props | dict = props.dict |> Dict.insert key (String (Initialized value)) }
 
             Just stored ->
-                Props { props | broken = True }
-                    |> butFirst (reportInvalidSet "setString" key stored (String (Initialized value)) (Props props))
+                P { props | broken = True }
+                    |> butFirst (reportInvalidSet "setString" key stored (String (Initialized value)) (P props))
 
 
 {-| Without specifying a value for the `key`, force the `Props` to only
@@ -990,25 +1075,25 @@ this will have no effect.
 
 -}
 expectStrings : Key -> Props -> Props
-expectStrings key (Props props) =
+expectStrings key (P props) =
     if props.broken then
-        Props props
+        P props
 
     else
         case Dict.get key props.dict of
             Nothing ->
-                Props { props | dict = props.dict |> Dict.insert key (Strings NotInitialized) }
+                P { props | dict = props.dict |> Dict.insert key (Strings NotInitialized) }
 
             Just (Strings _) ->
-                Props props
+                P props
 
             Just stored ->
-                Props { props | broken = True }
-                    |> butFirst (reportInvalidExpecation "expectStrings" key stored (Strings NotInitialized) (Props props))
+                P { props | broken = True }
+                    |> butFirst (reportInvalidExpecation "expectStrings" key stored (Strings NotInitialized) (P props))
 
 
-{-| Get the last value associated with `key`. This flag must have previously been **set**, not merely
-initialized.
+{-| Get the value associated with `key`. This key's value must have previously been **set**
+with `setStrings`, not merely declared with `expectStrings`.
 
      Props.empty
         |> Props.setStrings "to" [ "Vee", "Bo" ]
@@ -1021,8 +1106,8 @@ initialized.
 
      Props.empty
         |> Props.setStrings "to" [ "Han" ]
-        |> Props.addString "to" "Me"
-        |> Props.getStrings "to"     -- == [ "Me", "Han" ]
+        |> Props.setStrings "to" [ "Me", "You" ]
+        |> Props.getStrings "to"     -- == [ "Me", "You" ]
 
      Props.empty
         |> Props.getStrings "to"     -- XXX ERROR UNDEFINED
@@ -1033,7 +1118,7 @@ initialized.
 
 -}
 getStrings : Key -> Props -> List String
-getStrings key (Props props) =
+getStrings key (P props) =
     if props.broken then
         -- answer is undefined
         [ "ERROR GETSTRING CALLED ON A BROKEN OBJECT" ]
@@ -1046,13 +1131,13 @@ getStrings key (Props props) =
             stored ->
                 let
                     () =
-                        reportInvalidGet "getStrings" key stored (Strings NotInitialized) (Props props)
+                        reportInvalidGet "getStrings" key stored (Strings NotInitialized) (P props)
                 in
                 -- answer is undefined
                 [ "ERROR", "RETURNED", "FROM", "GETSTRING", key ]
 
 
-{-| Sets the value associated with `key`. This must be identential to the the type of all values
+{-| Sets the value associated with `key`. This must be identical to the the type of all values
 previously associated with `key`.
 
      Props.empty
@@ -1061,8 +1146,8 @@ previously associated with `key`.
 
 
      Props.empty
-        |> Props.setStrings "q" []
-        |> Props.addString "q" "D"
+        |> Props.setStrings "q" [ "F" ]
+        |> Props.setStrings "q" [ "E" ]
         |> Props.setStrings "q" [ "E" ]
                                       -- == { q: [ "E" ] }
 
@@ -1073,29 +1158,21 @@ previously associated with `key`.
 
 -}
 setStrings : Key -> List String -> Props -> Props
-setStrings key value (Props props) =
+setStrings key value (P props) =
     if props.broken then
-        Props props
+        P props
 
     else
         case Dict.get key props.dict of
             Nothing ->
-                Props { props | dict = props.dict |> Dict.insert key (Strings (Initialized value)) }
+                P { props | dict = props.dict |> Dict.insert key (Strings (Initialized value)) }
 
             Just (Strings _) ->
-                Props { props | dict = props.dict |> Dict.insert key (Strings (Initialized value)) }
+                P { props | dict = props.dict |> Dict.insert key (Strings (Initialized value)) }
 
             Just stored ->
-                Props { props | broken = True }
-                    |> butFirst (reportInvalidSet "setStrings" key stored (Strings (Initialized value)) (Props props))
-
-
-{-| Requires `key` to be associated with an initialized list of strings, and appends the
-new value to the beginning of that list.
--}
-addString : Key -> String -> Props -> Props
-addString key value props =
-    setStrings key (value :: getStrings key props) props
+                P { props | broken = True }
+                    |> butFirst (reportInvalidSet "setStrings" key stored (Strings (Initialized value)) (P props))
 
 
 {-| Without specifying a value for the `key`, force the `Props` to only
@@ -1106,25 +1183,25 @@ this will have no effect.
 
 -}
 expectMaybeString : Key -> Props -> Props
-expectMaybeString key (Props props) =
+expectMaybeString key (P props) =
     if props.broken then
-        Props props
+        P props
 
     else
         case Dict.get key props.dict of
             Nothing ->
-                Props { props | dict = props.dict |> Dict.insert key (MaybeString NotInitialized) }
+                P { props | dict = props.dict |> Dict.insert key (MaybeString NotInitialized) }
 
             Just (MaybeString _) ->
-                Props props
+                P props
 
             Just stored ->
-                Props { props | broken = True }
-                    |> butFirst (reportInvalidExpecation "expectMaybeString" key stored (MaybeString NotInitialized) (Props props))
+                P { props | broken = True }
+                    |> butFirst (reportInvalidExpecation "expectMaybeString" key stored (MaybeString NotInitialized) (P props))
 
 
-{-| Get the last value associated with `key`. This flag must have previously been **set**, not merely
-initialized.
+{-| Get the value associated with `key`. This key's value must have previously been **set**
+with `setMaybeString`, not merely declared with `expectMaybeString`.
 
      Props.empty
         |> Props.setMaybeString "kw" (Just "lost")
@@ -1149,7 +1226,7 @@ initialized.
 
 -}
 getMaybeString : Key -> Props -> Maybe String
-getMaybeString key (Props props) =
+getMaybeString key (P props) =
     if props.broken then
         -- answer is undefined
         Just "ERROR GETMAYBESTRING CALLED ON A BROKEN OBJECT"
@@ -1162,10 +1239,10 @@ getMaybeString key (Props props) =
             stored ->
                 -- answer is undefined
                 Just "ERROR GETMAYBESTRING CALLED ON A BROKEN OBJECT"
-                    |> butFirst (reportInvalidGet "getMaybeString" key stored (MaybeString NotInitialized) (Props props))
+                    |> butFirst (reportInvalidGet "getMaybeString" key stored (MaybeString NotInitialized) (P props))
 
 
-{-| Sets the value associated with `key`. This must be identential to the the type of all values
+{-| Sets the value associated with `key`. This must be identical to the the type of all values
 previously associated with `key`.
 
      Props.empty
@@ -1180,18 +1257,153 @@ previously associated with `key`.
 
 -}
 setMaybeString : Key -> Maybe String -> Props -> Props
-setMaybeString key value (Props props) =
+setMaybeString key value (P props) =
     if props.broken then
-        Props props
+        P props
 
     else
         case Dict.get key props.dict of
             Nothing ->
-                Props { props | dict = props.dict |> Dict.insert key (MaybeString (Initialized value)) }
+                P { props | dict = props.dict |> Dict.insert key (MaybeString (Initialized value)) }
 
             Just (MaybeString _) ->
-                Props { props | dict = props.dict |> Dict.insert key (MaybeString (Initialized value)) }
+                P { props | dict = props.dict |> Dict.insert key (MaybeString (Initialized value)) }
 
             Just stored ->
-                Props { props | broken = True }
-                    |> butFirst (reportInvalidSet "setMaybeString" key stored (MaybeString (Initialized value)) (Props props))
+                P { props | broken = True }
+                    |> butFirst (reportInvalidSet "setMaybeString" key stored (MaybeString (Initialized value)) (P props))
+
+
+{-| Without specifying a value for the `key`, force the `Props` to only
+accept values of type `Props` with `key`.
+
+If the `Props` object already associates values of type `Props` with the `key`,
+this will have no effect.
+
+-}
+expectProps : Key -> Props -> Props
+expectProps key (P props) =
+    if props.broken then
+        P props
+
+    else
+        case Dict.get key props.dict of
+            Nothing ->
+                P { props | dict = props.dict |> Dict.insert key (Props NotInitialized) }
+
+            Just (Props _) ->
+                P props
+
+            Just stored ->
+                P { props | broken = True }
+                    |> butFirst (reportInvalidExpecation "expectProps" key stored (Props NotInitialized) (P props))
+
+
+{-| Get the value associated with `key`. This key's value must have previously been **set**
+with `setProps`, not merely declared with `expectProps`.
+-}
+getProps : Key -> Props -> Props
+getProps key (P props) =
+    if props.broken then
+        -- answer is undefined
+        P { broken = True, log = props.log, dict = Dict.singleton "nope" (String (Initialized "definitely nope")) }
+
+    else
+        case Dict.get key props.dict of
+            Just (Props (Initialized value)) ->
+                value
+
+            stored ->
+                -- answer is undefined
+                P { broken = True, log = props.log, dict = Dict.singleton "not gonna happen" (String (Initialized "ever")) }
+                    |> butFirst (reportInvalidGet "getProps" key stored (Props NotInitialized) (P props))
+
+
+{-| Sets the value associated with `key`. This must be identical to the the type of all values
+previously associated with `key`.
+-}
+setProps : Key -> Props -> Props -> Props
+setProps key value (P props) =
+    if props.broken then
+        P props
+
+    else
+        case Dict.get key props.dict of
+            Nothing ->
+                P { props | dict = props.dict |> Dict.insert key (Props (Initialized value)) }
+
+            Just (Props _) ->
+                P { props | dict = props.dict |> Dict.insert key (Props (Initialized value)) }
+
+            Just stored ->
+                P { props | broken = True }
+                    |> butFirst (reportInvalidSet "setProps" key stored (Props (Initialized value)) (P props))
+
+
+{-| Without specifying a value for the `key`, force the `Props` to only
+accept values of type `List Props` with `key`.
+
+If the `Props` object already associates values of type `List Props` with the `key`,
+this will have no effect.
+
+-}
+expectPropss : Key -> Props -> Props
+expectPropss key (P props) =
+    if props.broken then
+        P props
+
+    else
+        case Dict.get key props.dict of
+            Nothing ->
+                P { props | dict = props.dict |> Dict.insert key (Propss NotInitialized) }
+
+            Just (Propss _) ->
+                P props
+
+            Just stored ->
+                P { props | broken = True }
+                    |> butFirst (reportInvalidExpecation "expectPropss" key stored (Propss NotInitialized) (P props))
+
+
+{-| Get the value associated with `key`. This key's value must have previously been **set**
+with `setPropss`, not merely declared with `expectPropss`.
+-}
+getPropss : Key -> Props -> List Props
+getPropss key (P props) =
+    if props.broken then
+        -- answer is undefined
+        [ P { broken = True, log = props.log, dict = Dict.singleton "bad" (String (Initialized "so")) } ]
+
+    else
+        case Dict.get key props.dict of
+            Just (Propss (Initialized value)) ->
+                value
+
+            stored ->
+                let
+                    () =
+                        reportInvalidGet "getPropss" key stored (Propss NotInitialized) (P props)
+                in
+                -- answer is undefined
+                [ P { broken = True, log = props.log, dict = Dict.singleton "thanks" (String (Initialized "i hate it")) } ]
+
+
+{-| Sets the value associated with `key`. This must be identical to the the type of all values
+previously associated with `key`.
+-}
+setPropss : Key -> List Props -> Props -> Props
+setPropss key value (P props) =
+    if props.broken then
+        P props
+
+    else
+        case Dict.get key props.dict of
+            Nothing ->
+                P { props | dict = props.dict |> Dict.insert key (Propss (Initialized value)) }
+
+            Just (Strings _) ->
+                P { props | dict = props.dict |> Dict.insert key (Propss (Initialized value)) }
+
+            Just stored ->
+                P { props | broken = True }
+                    |> butFirst (reportInvalidSet "setStrings" key stored (Propss (Initialized value)) (P props))

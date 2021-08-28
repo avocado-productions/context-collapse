@@ -4,6 +4,7 @@ import Color
 import Element exposing (Element, Length, el, fill, height, none, px, width)
 import Element.Background as Background
 import Element.Font as Font
+import App exposing (Msg)
 
 
 threadHeight : Length
@@ -54,6 +55,11 @@ leftBuffer2 =
     px 35
 
 
+bottomBuffer : Int
+bottomBuffer =
+    100
+
+
 buttonSpacing : Int
 buttonSpacing =
     20
@@ -87,3 +93,7 @@ logoFont =
 contentFont : Element.Attribute msg
 contentFont =
     Font.family [ Font.typeface "Raleway", Font.sansSerif ]
+
+fontSmall : Element.Attribute msg
+fontSmall = 
+    Font.size 15

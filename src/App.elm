@@ -1,4 +1,4 @@
-module App exposing (ActiveThread, ActiveThreadState(..), InboxState(..), Model, Msg(..), emptyProps)
+module App exposing (ActiveThread, ActiveThreadState(..), Model, Msg(..), ViewMsg(..), emptyProps)
 
 {- Types used by the runtime. -}
 
@@ -17,8 +17,8 @@ type alias Model =
     , script : Script
     , threads : Dict String ActiveThread
     , inbox : List { threadId : String }
-    , state : InboxState
     , navKey : Browser.Navigation.Key
+    , attachment : Maybe Props
     }
 
 
@@ -26,19 +26,21 @@ type Msg
     = DoNothing
     | NavPushUrl String
     | NavBack
-    | OpenInbox
-    | OpenThread { threadId : String }
-    | Archive { threadId : String }
-    | SetFlag { threadId : String, key : String, value : Bool }
-    | SetMaybeIntProp { threadId : String, key : String, value : Maybe Int }
-    | Select String Int
     | OnUrlChange Url
     | OnUrlRequest Browser.UrlRequest
+    | V ViewMsg
 
 
-type InboxState
-    = ThreadOpen { threadId : String }
-    | InboxOpen
+type ViewMsg
+    = Refresh
+    | OpenInbox
+    | OpenThread { threadId : String }
+    | Star { threadId : String, value : Bool }
+    | Important { threadId : String, value : Bool }
+    | Recommendation { threadId : String, value : Maybe Int }
+    | Archive { threadId : String }
+    | Select String Int
+    | Attachment (Maybe Props)
 
 
 {-| ActiveThread props:

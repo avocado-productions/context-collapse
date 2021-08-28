@@ -183,7 +183,7 @@ main =
                             { title, body } =
                                 View.view avoCommModel
                         in
-                        { title = title, body = List.map (Html.map AvoCommMsg) body }
+                        { title = title, body = List.map (Html.map App.V >> Html.map AvoCommMsg) body }
         , update =
             \msg model ->
                 case msg of

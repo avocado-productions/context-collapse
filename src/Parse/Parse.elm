@@ -274,13 +274,17 @@ convertSection contacts { level, label, contents } =
                 )
                     |> Result.andThen
                         (\( props, rest ) ->
-                            rest |> resultFold (convertEmailElement contacts) { props = props, email = [], actions = [], scenes = [], threads = [] }
+                            rest |> resultFold (convertEmailElement contacts) { props = props, email = [], actions = [], scenes = [], attachments = [], threads = [] }
                         )
                     |> Result.map
-                        (\{ props, email, actions, scenes, threads } ->
+                        (\{ props, email, actions, scenes, threads, attachments } ->
                             { level = level
                             , scene =
-                                { receivedEmail = { props = props, contents = List.reverse email }
+                                { receivedEmail =
+                                    { props =
+                                        props |> Props.setPropss "attachments" (List.reverse attachments)
+                                    , contents = List.reverse email
+                                    }
                                 , actions = List.reverse actions
                                 }
                             , name = sectionName
@@ -403,11 +407,47 @@ convertEmailParameters addressBook l parameters =
 
 type alias EmailConvert a =
     { a
-        | email : List Message.Element
+        | props : Props
+        , email : List Message.Element
         , threads : List (Loc String)
         , scenes : List (Loc String)
         , actions : List Script.Action
+        , attachments : List Props
     }
+
+
+convertAttachment : String -> List (Loc Camp.Parameter) -> Result String Props
+convertAttachment url =
+    resultFold
+        (\param props ->
+            case param of
+                ( _, ( ( _, "name" ), [ ( _, Camp.String name ) ] ) ) ->
+                    Ok (Props.setString "name" name props)
+
+                ( _, ( ( _, "preview" ), [ ( _, Camp.String name ) ] ) ) ->
+                    Ok (Props.setMaybeString "preview" (Just name) props)
+
+                ( _, ( ( _, "size" ), [ ( _, Camp.Int size ) ] ) ) ->
+                    Ok (Props.setInt "size" size props)
+
+                ( loc, ( ( _, "name" ), _ ) ) ->
+                    Err <| "Did not get a single string argument for |> name as expected (line " ++ String.fromInt loc.start.line ++ ")"
+
+                ( loc, ( ( _, "preview" ), _ ) ) ->
+                    Err <| "Did not get a single string argument for |> name as expected (line " ++ String.fromInt loc.start.line ++ ")"
+
+                ( loc, ( ( _, "size" ), _ ) ) ->
+                    Err <| "Did not get a single int argument for |> size as expected (line " ++ String.fromInt loc.start.line ++ ")"
+
+                ( loc, ( ( _, p ), _ ) ) ->
+                    Err <| "Only expected name or size parameters for atachments, not " ++ p ++ " (line " ++ String.fromInt loc.start.line ++ ")"
+        )
+        (Props.empty
+            |> Props.setString "url" url
+            |> Props.setString "name" url
+            |> Props.setMaybeString "preview" Nothing
+            |> Props.setInt "size" 512453
+        )
 
 
 convertEmailElement : Dict String Script.AddressbookEntry -> Camp.Element -> EmailConvert a -> Result String (EmailConvert a)
@@ -419,6 +459,10 @@ convertEmailElement contacts element accum =
 
         Camp.Command { command, lines, child } ->
             case command of
+                ( Just ( _, "attachment" ), ( [ ( _, Camp.String url ) ], params ) ) ->
+                    Result.map (\attachment -> { accum | attachments = attachment :: accum.attachments })
+                        (convertAttachment url params)
+
                 ( Just ( _, "archive" ), ( [], [] ) ) ->
                     {- }
                        case child of
@@ -432,14 +476,14 @@ convertEmailElement contacts element accum =
                     -}
                     Ok { accum | actions = Script.Archive :: accum.actions }
 
+                ( Just ( loc, "archive" ), ( _, _ ) ) ->
+                    Err ("!archive shouldn't have arguments or parameters (line " ++ String.fromInt loc.start.line ++ ")")
+
                 ( Just ( _, "image" ), ( [ ( _, Camp.String url ) ], [] ) ) ->
                     Ok { accum | email = Message.Image { url = url } :: accum.email }
 
                 ( Just ( loc, "image" ), _ ) ->
                     Err ("!image should only have a single argument, a url in quotes (line " ++ String.fromInt loc.start.line ++ ")")
-
-                ( Just ( loc, "archive" ), ( _, _ ) ) ->
-                    Err ("!archive shouldn't have arguments or parameters (line " ++ String.fromInt loc.start.line ++ ")")
 
                 ( Just ( _, "trigger" ), ( [ ( loc, Camp.String scene ) ], [] ) ) ->
                     Ok

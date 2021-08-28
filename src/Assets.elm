@@ -1,4 +1,4 @@
-module Assets exposing (idCircle, importantNo, importantYes, starNo, starYes)
+module Assets exposing (idCircle, importantNo, importantYes, starNo, starYes, attachedDocument)
 
 import Html.Attributes
 import Svg exposing (Svg)
@@ -59,4 +59,17 @@ starYes =
             , Svg.Attributes.points "4,19 4,12 1,7 7,5 10,0 13,5 19,7 16,12 16,19 10,16.5"
             ]
             []
+        ]
+
+
+attachedDocument : Svg msg
+attachedDocument =
+    Svg.svg [ Html.Attributes.width 15, Html.Attributes.height 15 ]
+        [ Svg.polygon
+            [ Svg.Attributes.fill "none"
+            , Svg.Attributes.stroke "gray"
+            , Svg.Attributes.points "3,1 8,1 12,5, 8,5 8,1 12,5 12,14 3,14"
+            ]
+            [] 
+        , Svg.line [Svg.Attributes.stroke "gray", Svg.Attributes.points "5"] []
         ]

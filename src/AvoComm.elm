@@ -1,6 +1,7 @@
 module AvoComm exposing (..)
 
 import App as App exposing (Model)
+import Browser
 import Browser.Navigation as Nav exposing (Key)
 import Cmd.Extra as Cmd
 import CryptoScript
@@ -43,10 +44,9 @@ init script _ key =
                                 , state = App.Ready { responseOptions = responseOptions }
                                 , props =
                                     App.emptyProps
-                                        |> Props.setFlag "archivable" False
+                                        |> Props.setFlag "archivable" archivable
                                         |> Props.setFlag "archived" False
-                                        |> Props.setInt "size" 0
-                                        -- TODO SET SIZE
+                                        |> Props.setInt "size" size
                                         |> Props.setFlag "starred" False
                                         |> Props.setMaybeBool "important" Nothing
                                         |> Props.setFlag "unread" True
@@ -55,12 +55,12 @@ init script _ key =
                                 }
                 }
             )
-            { state = App.InboxOpen
-            , blocked = []
+            { blocked = []
             , inbox = []
             , threads = Dict.empty
             , script = CryptoScript.hashScript script
             , navKey = key
+            , attachment = Nothing
             }
         |> Cmd.with (Nav.pushUrl key "#/k/inbox/")
 
@@ -99,11 +99,56 @@ setFlag { threadId, key, value } model =
     }
 
 
-setMaybeIntProp : { threadId : String, key : String, value : Maybe Int } -> App.Model -> App.Model
-setMaybeIntProp { threadId, key, value } model =
+setMaybeBool : { threadId : String, key : String, value : Maybe Bool } -> App.Model -> App.Model
+setMaybeBool { threadId, key, value } model =
+    { model
+        | threads =
+            model.threads |> Dict.update threadId (Maybe.map (\thread -> { thread | props = thread.props |> Props.setMaybeBool key value }))
+    }
+
+
+setMaybeInt : { threadId : String, key : String, value : Maybe Int } -> App.Model -> App.Model
+setMaybeInt { threadId, key, value } model =
     { model
         | threads =
             model.threads |> Dict.update threadId (Maybe.map (\thread -> { thread | props = thread.props |> Props.setMaybeInt key value }))
+    }
+
+
+closeThread : App.Model -> App.Model
+closeThread model =
+    { model
+        | threads =
+            Dict.map
+                (\_ thread ->
+                    { thread
+                        | props =
+                            Props.setFlag "open" False thread.props
+                    }
+                )
+                model.threads
+    }
+
+
+openThread : String -> App.Model -> App.Model
+openThread id model =
+    { model
+        | threads =
+            Dict.map
+                (\threadId thread ->
+                    { thread
+                        | props =
+                            if id == threadId then
+                                thread.props
+                                    |> Props.setFlag "open" True
+                                    |> Props.setFlag "unread" False
+
+                            else
+                                thread.props
+                                    |> Props.setFlag "open" False
+                    }
+                )
+                model.threads
     }
 
 
@@ -119,240 +164,164 @@ update msg model =
         App.NavBack ->
             model |> Cmd.with (Nav.back model.navKey 1)
 
-        App.OpenInbox ->
-            { model | state = App.InboxOpen } |> Cmd.pure
-
-        App.OpenThread { threadId } ->
-            model
-                |> setFlag { threadId = threadId, key = "open", value = True }
-                |> setFlag { threadId = threadId, key = "unread", value = False }
-                |> Cmd.with (Nav.pushUrl model.navKey ("#/k/inbox/" ++ threadId))
-
-        App.SetFlag v ->
-            model
-                |> setFlag v
-                |> Cmd.pure
-
-        App.SetMaybeIntProp v ->
-            model
-                |> setMaybeIntProp v
-                |> Cmd.pure
-
-        App.Archive { threadId } ->
-            model
-                |> setFlag { threadId = threadId, key = "archived", value = True }
-                |> setFlag { threadId = threadId, key = "open", value = False }
-                |> Cmd.with (Nav.pushUrl model.navKey "#/k/inbox/")
-
-        App.Select threadId responseIndex ->
-            let
-                thread =
-                    getThread threadId model
-
-                response : Script.EmailResponse
-                response =
-                    (case thread.state of
-                        App.Waiting ->
-                            -- Should be impossible!
-                            Nothing
-
-                        App.Ready { responseOptions } ->
-                            List.getAt responseIndex responseOptions
-                    )
-                        |> Maybe.withDefault
-                            -- Should be impossible to hit the default
-                            { shortText = []
-                            , email = { props = Props.empty, contents = [] }
-                            , next = Nothing
-                            , spawn = []
-                            }
-
-                newThreads : List App.ActiveThread
-                newThreads =
-                    List.map
-                        (\spawnedThreadId ->
-                            let
-                                script =
-                                    getThreadScript spawnedThreadId model
-
-                                { newEmails, responseOptions, archivable, size } =
-                                    advanceThread model script script.start
-                            in
-                            { threadId = spawnedThreadId
-                            , contents = newEmails
-                            , state =
-                                App.Ready
-                                    { responseOptions = responseOptions }
-                            , props =
-                                App.emptyProps
-                                    |> Props.setFlag "archivable" False
-                                    |> Props.setFlag "archived" False
-                                    |> Props.setInt "size" 5000
-                                    -- TODO ^^^^^
-                                    |> Props.setFlag "starred" False
-                                    |> Props.setMaybeBool "important" Nothing
-                                    |> Props.setFlag "unread" True
-                                    |> Props.setMaybeInt "selection" Nothing
-                                    |> Props.setFlag "open" False
-                            }
-                        )
-                        response.spawn
-
-                newInbox =
-                    newThreads |> List.map (\spawnedThread -> { threadId = spawnedThread.threadId })
-            in
-            { model
-                | inbox = newInbox ++ model.inbox
-                , threads =
-                    Dict.insert threadId
-                        { thread
-                            | contents = thread.contents ++ [ response.email ]
-                            , state = App.Waiting
-                            , props =
-                                thread.props
-                                    |> Props.setFlag "open" False
-                                    |> Props.setInt "size"
-                                        (Props.getInt "size" thread.props + 5000 {- TODO Props.getInt "size" response.email.props -})
-                        }
-                        model.threads
-
-                {- }
-                        -- Replace the appropriate thread with the
-                        -- updated thread
-                        |>
-                        |> List.setAt location.inboxIndex
-                            { thread
-                                | contents = thread.contents ++ [ response.email ]
-                                , state = App.Responded { archivable = False }
-                                , size =
-                                    Props.getMaybeInt "size" response.email.props
-                                        |> Maybe.withDefault 4000
-                            }
-                        |> advanceInbox model
-
-                   )
-                -}
-                , blocked =
-                    response.next
-                        |> Maybe.map (\blockedNextId -> [ { threadId = threadId, next = blockedNextId, delay = 1 } ])
-                        |> Maybe.withDefault []
-                        |> (++) model.blocked
-                , state = App.InboxOpen
-            }
-                |> advanceInbox
-                |> Cmd.with (Nav.pushUrl model.navKey "#/k/inbox/")
-
         App.OnUrlChange url ->
             case Maybe.map (String.split "/") url.fragment of
                 Just [ "", "k", "inbox", "" ] ->
-                    { model
-                        | threads = Dict.map (\_ thread -> { thread | props = Props.setFlag "open" False thread.props }) model.threads
-                    }
+                    model
+                        |> closeThread
                         |> Cmd.pure
 
                 Just [ "", "k", "inbox", id ] ->
-                    { model
-                        | threads =
-                            Dict.map
-                                (\threadId thread ->
-                                    { thread
-                                        | props =
-                                            if id == threadId then
-                                                thread.props
-                                                    |> Props.setFlag "open" True
-                                                    |> Props.setFlag "unread" False
-
-                                            else
-                                                thread.props
-                                                    |> Props.setFlag "open" False
-                                    }
-                                )
-                                model.threads
-                    }
+                    model
+                        |> openThread id
                         |> Cmd.pure
 
-                {- }
-                   List.map
-                       (\{ threadId } ->
-                           if id == threadId then
-                               Just (Cmd.perform (App.OpenThread { threadId = threadId }))
-
-                           else
-                               Nothing
-                       )
-                       model.inbox
-                       |> List.filterMap identity
-                       |> Cmd.batch
-                       |> Tuple.pair model
-                -}
                 _ ->
-                    model |> Cmd.with (Cmd.perform App.OpenInbox)
+                    model |> Cmd.with (Nav.pushUrl model.navKey "#/k/inbox/")
 
-        App.OnUrlRequest _ ->
-            model |> Cmd.pure
+        App.OnUrlRequest request ->
+            case request of
+                Browser.External url ->
+                    let
+                        _ =
+                            Debug.log "ignoring exernal link" url
+                    in
+                    model |> Cmd.pure
 
+                Browser.Internal url ->
+                    case Maybe.map (String.split "/") url.fragment of
+                        Just [ "", "k", "inbox", "" ] ->
+                            model
+                                |> closeThread
+                                |> Cmd.pure
 
+                        Just [ "", "k", "inbox", id ] ->
+                            model
+                                |> openThread id
+                                |> Cmd.pure
 
-{- }
+                        _ ->
+                            model 
+                                |> Cmd.with (Nav.pushUrl model.navKey "#/k/inbox/")
 
-   App.SelectSuggestion ->
-       case model.state of
-           App.ThreadOpen { location } ->
-               let
-                   thread =
-                       getThread location.inboxIndex model
+        App.V viewMsg ->
+            case viewMsg of
+                App.Refresh ->
+                    model
+                        |> Cmd.pure
 
-                   response : Script.EmailResponse
-                   response =
-                       -- Append the selected email to the end of its thread,
-                       -- change that thread's state to App.Responded
-                       (case thread.state of
-                           App.Unresponded { responseOptions, currentlySelectedOptionIndex } ->
-                               currentlySelectedOptionIndex
-                                   |> Maybe.andThen (\index -> List.getAt index responseOptions)
+                App.OpenInbox ->
+                    model
+                        |> closeThread
+                        |> Cmd.with (Nav.pushUrl model.navKey "#/k/inbox/")
 
-                           _ ->
-                               -- Should be impossible!
-                               Nothing
-                       )
-                           |> Maybe.withDefault
-                               -- Should be impossible to hit the default
-                               { shortText = []
-                               , email = { props = emptyProps, contents = [] }
-                               , next = Nothing
-                               , spawn = []
-                               }
+                App.OpenThread { threadId } ->
+                    model
+                        |> setFlag { threadId = threadId, key = "open", value = True }
+                        |> setFlag { threadId = threadId, key = "unread", value = False }
+                        |> Cmd.with (Nav.pushUrl model.navKey ("#/k/inbox/" ++ threadId))
 
-                   newThreads : List App.ActiveThread
-                   newThreads =
-                       List.map
-                           (\spawnId ->
-                               let
-                                   script =
-                                       getThreadScript spawnId model
+                App.Star { threadId, value } ->
+                    model
+                        |> setFlag { threadId = threadId, key = "starred", value = value }
+                        |> Cmd.pure
 
-                                   { newEmails, responseOptions, archivable, size } =
-                                       advanceThread model script script.start
-                               in
-                               { threadId = spawnId
-                               , contents = newEmails
-                               , state =
-                                   App.Unread
-                                       { archivable = archivable
-                                       , responseOptions = responseOptions
-                                       }
-                               , starred = False
-                               , size = size
-                               }
-                           )
-                           response.spawn
-               in
-               { model
-                   | inbox =
-                       newThreads
-                           ++ (model.inbox
+                App.Important { threadId, value } ->
+                    model
+                        |> setMaybeBool { threadId = threadId, key = "important", value = Just value }
+                        |> Cmd.pure
+
+                App.Archive { threadId } ->
+                    model
+                        |> setFlag { threadId = threadId, key = "archived", value = True }
+                        |> setFlag { threadId = threadId, key = "open", value = False }
+                        |> Cmd.with (Nav.pushUrl model.navKey "#/k/inbox/")
+
+                App.Recommendation { threadId, value } ->
+                    model
+                        |> setMaybeInt { threadId = threadId, key = "selection", value = value }
+                        |> Cmd.pure
+
+                App.Attachment attachment ->
+                    { model | attachment = attachment }
+                        |> Cmd.pure
+
+                App.Select threadId responseIndex ->
+                    let
+                        thread =
+                            getThread threadId model
+
+                        response : Script.EmailResponse
+                        response =
+                            (case thread.state of
+                                App.Waiting ->
+                                    -- Should be impossible!
+                                    Nothing
+
+                                App.Ready { responseOptions } ->
+                                    List.getAt responseIndex responseOptions
+                            )
+                                |> Maybe.withDefault
+                                    -- Should be impossible to hit the default
+                                    { shortText = []
+                                    , email = { props = Props.empty, contents = [] }
+                                    , next = Nothing
+                                    , spawn = []
+                                    }
+
+                        newThreads : List App.ActiveThread
+                        newThreads =
+                            List.map
+                                (\spawnedThreadId ->
+                                    let
+                                        script =
+                                            getThreadScript spawnedThreadId model
+
+                                        { newEmails, responseOptions, archivable, size } =
+                                            advanceThread model script script.start
+                                    in
+                                    { threadId = spawnedThreadId
+                                    , contents = newEmails
+                                    , state =
+                                        App.Ready
+                                            { responseOptions = responseOptions }
+                                    , props =
+                                        App.emptyProps
+                                            |> Props.setFlag "archivable" False
+                                            |> Props.setFlag "archived" False
+                                            |> Props.setInt "size" 5000
+                                            -- TODO ^^^^^
+                                            |> Props.setFlag "starred" False
+                                            |> Props.setMaybeBool "important" Nothing
+                                            |> Props.setFlag "unread" True
+                                            |> Props.setMaybeInt "selection" Nothing
+                                            |> Props.setFlag "open" False
+                                    }
+                                )
+                                response.spawn
+
+                        newInbox =
+                            newThreads |> List.map (\spawnedThread -> { threadId = spawnedThread.threadId })
+                    in
+                    { model
+                        | inbox = newInbox ++ model.inbox
+                        , threads =
+                            Dict.insert threadId
+                                { thread
+                                    | contents = thread.contents ++ [ response.email ]
+                                    , state = App.Waiting
+                                    , props =
+                                        thread.props
+                                            |> Props.setFlag "open" False
+                                            |> Props.setInt "size"
+                                                (Props.getInt "size" thread.props + 5000 {- TODO Props.getInt "size" response.email.props -})
+                                }
+                                model.threads
+
+                        {- }
                                    -- Replace the appropriate thread with the
                                    -- updated thread
+                                   |>
                                    |> List.setAt location.inboxIndex
                                        { thread
                                            | contents = thread.contents ++ [ response.email ]
@@ -362,41 +331,17 @@ update msg model =
                                                    |> Maybe.withDefault 4000
                                        }
                                    |> advanceInbox model
-                              )
-                   , blocked = response.next |> Maybe.map (\blockedNextId -> { threadId = location.threadId, next = blockedNextId })
-                   , state = App.InboxOpen
-               }
-                   |> Cmd.with (Nav.pushUrl model.navKey "#/k/inbox/")
 
-           _ ->
-               -- Should be impossible!
-               model |> Cmd.pure
-
-   App.OnUrlChange url ->
-       case Maybe.map (String.split "/") url.fragment of
-           Just [ "", "k", "inbox", "" ] ->
-               model |> Cmd.with (Cmd.perform App.OpenInbox)
-
-           Just [ "", "k", "inbox", id ] ->
-               List.indexedMap
-                   (\inboxIndex { threadId } ->
-                       if id == threadId then
-                           Just (Cmd.perform (App.OpenThread { threadId = threadId, inboxIndex = inboxIndex }))
-
-                       else
-                           Nothing
-                   )
-                   model.inbox
-                   |> List.filterMap identity
-                   |> Cmd.batch
-                   |> Tuple.pair model
-
-           _ ->
-               model |> Cmd.with (Cmd.perform App.OpenInbox)
-
-   App.OnUrlRequest _ ->
-       model |> Cmd.pure
--}
+                           )
+                        -}
+                        , blocked =
+                            response.next
+                                |> Maybe.map (\blockedNextId -> [ { threadId = threadId, next = blockedNextId, delay = 1 } ])
+                                |> Maybe.withDefault []
+                                |> (++) model.blocked
+                    }
+                        |> advanceInbox
+                        |> Cmd.with (Nav.pushUrl model.navKey "#/k/inbox/")
 
 
 messageTextSize : Markup.Text -> Int
