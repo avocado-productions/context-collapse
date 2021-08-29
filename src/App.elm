@@ -1,4 +1,4 @@
-module App exposing (ActiveThread, ActiveThreadState(..), Model, Msg(..), ViewMsg(..), emptyProps)
+module App exposing (ActiveThread, ActiveThreadState(..), Folder(..), Model, Msg(..), ViewMsg(..), emptyProps)
 
 {- Types used by the runtime. -}
 
@@ -19,7 +19,16 @@ type alias Model =
     , inbox : List { threadId : String }
     , navKey : Browser.Navigation.Key
     , attachment : Maybe Props
+    , openFolder : Folder
     }
+
+
+type Folder
+    = FolderInbox
+    | FolderImportant
+    | FolderStarred
+    | FolderSent
+    | FolderAll
 
 
 type Msg
@@ -33,7 +42,7 @@ type Msg
 
 type ViewMsg
     = Refresh
-    | OpenInbox
+    | OpenFolder Folder
     | OpenThread { threadId : String }
     | Star { threadId : String, value : Bool }
     | Important { threadId : String, value : Bool }

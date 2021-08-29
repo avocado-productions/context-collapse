@@ -5,6 +5,8 @@ import Svg exposing (Svg)
 import Svg.Attributes
 
 
+avocadoHighlight = "rgb(226, 227, 121)"
+
 idCircle : Svg msg
 idCircle =
     Svg.svg [ Html.Attributes.width 50, Html.Attributes.height 50 ]
@@ -30,7 +32,7 @@ importantYes : Svg msg
 importantYes =
     Svg.svg [ Html.Attributes.width 24, Html.Attributes.height 10 ]
         [ Svg.polygon
-            [ Svg.Attributes.fill "yellow"
+            [ Svg.Attributes.fill avocadoHighlight
             , Svg.Attributes.stroke "black"
             , Svg.Attributes.points "0,0 13,0 18,5 13,10 0,10 5,5"
             ]
@@ -54,7 +56,7 @@ starYes : Svg msg
 starYes =
     Svg.svg [ Html.Attributes.width 20, Html.Attributes.height 19 ]
         [ Svg.polygon
-            [ Svg.Attributes.fill "yellow"
+            [ Svg.Attributes.fill avocadoHighlight
             , Svg.Attributes.stroke "black"
             , Svg.Attributes.points "4,19 4,12 1,7 7,5 10,0 13,5 19,7 16,12 16,19 10,16.5"
             ]

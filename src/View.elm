@@ -13,6 +13,7 @@ import Element.Border as Border
 import Element.Events as Events
 import Element.Font as Font
 import Element.Region as Region
+import Html exposing (th)
 import Html.Attributes
 import List.Extra as List
 import Markup exposing (Markup)
@@ -22,6 +23,10 @@ import Props2 as Props
 import Script
 import UI
 import Util
+
+
+userSelectNone =
+    [ htmlAttribute (Html.Attributes.style "user-select" "none"), htmlAttribute (Html.Attributes.style "-webkit-user-select" "none"), htmlAttribute (Html.Attributes.style "-ms-user-select" "none") ]
 
 
 view : App.Model -> Document App.ViewMsg
@@ -56,9 +61,18 @@ view model =
         [ Element.layout [ height fill, width fill, inFront (viewAttachmentModal model) ] <|
             row [ width fill, height fill, spacing 0 ] <|
                 [ -- Left Bar
-                  row [ paddingEach { top = UI.externalChromePadding, left = UI.externalChromePadding, right = 0, bottom = 0 }, width <| px UI.leftMenuWidth, height fill ]
-                    [ image [ width <| px UI.logoWidth, height <| px UI.logoHeight, alignTop ] { src = "assets/avocomm-logo.png", description = "AvoComm webmail client logo" }
-                    , el [ width fill, height <| px UI.logoHeight, alignTop, Font.size 54, UI.logoFont ] (el [ alignBottom ] <| text "voComm")
+                  column ([ width <| px UI.leftMenuWidth, height fill ] ++ userSelectNone)
+                    [ row [ htmlAttribute (Html.Attributes.style "cursor" "default"), paddingEach { top = UI.externalChromePadding, left = UI.externalChromePadding, right = 0, bottom = 0 }, width fill ]
+                        [ image [ width <| px UI.logoWidth, height <| px UI.logoHeight, alignTop ] { src = "assets/avocomm-logo.png", description = "AvoComm webmail client logo" }
+                        , el [ width fill, height <| px UI.logoHeight, alignTop, Font.size 54, UI.logoFont ] (el [ alignBottom ] <| text "voComm")
+                        ]
+                    , el [ height (px 25) ] none
+                    , leftNavItem model App.FolderInbox "Inbox"
+                    , leftNavItem model App.FolderImportant "Important"
+                    , leftNavItem model App.FolderStarred "Starred"
+
+                    -- , leftNavItem model App.FolderSent "Sent"
+                    , leftNavItem model App.FolderAll "All Mail"
                     ]
                 , -- Main panel
                   column [ height fill, width fill ] <|
@@ -81,6 +95,23 @@ view model =
                 ]
         ]
     }
+
+
+leftNavItem model folder str =
+    el [ paddingEach { bottom = 10, left = 0, top = 0, right = 30 }, width fill ] <|
+        if model.openFolder == folder then
+            el [ htmlAttribute (Html.Attributes.style "cursor" "default"), Background.color Color.avocadoHighlight, width fill, paddingXY 0 5, Border.roundEach { topLeft = 0, bottomLeft = 0, topRight = 12 + 5, bottomRight = 12 + 5 } ] <|
+                row [ width fill ]
+                    [ el [ width (px 30) ] none
+                    , el [ UI.uiFont, Font.size 24, width fill ] (text str)
+                    ]
+
+        else
+            el [ pointer, Background.color Color.white, mouseOver [ Background.color Color.uiLightGray ], width fill, Events.onClick (App.OpenFolder folder), paddingXY 0 5, Border.roundEach { topLeft = 0, bottomLeft = 0, topRight = 12 + 5, bottomRight = 12 + 5 } ] <|
+                row [ UI.uiFont, Font.size 24, width fill ]
+                    [ el [ width (px 30) ] none
+                    , el [ UI.uiFont, Font.size 24, width fill ] (text str)
+                    ]
 
 
 viewAttachmentModal : App.Model -> Element App.ViewMsg
@@ -163,13 +194,14 @@ toolbarButton emphasize symbol desc action =
                 []
     in
     row
-        ([ spacing 4, height (px 40), paddingXY 10 0, Border.rounded 40, Region.navigation, htmlAttribute (Html.Attributes.style "user-select" "none") ]
+        ([ spacing 4, height (px 40), paddingXY 10 0, Border.rounded 40, Region.navigation ]
+            ++ userSelectNone
             ++ (case action of
                     Just msg ->
                         [ Events.onClick msg, pointer, mouseOver [ Background.color Color.uiLightGray ] ]
 
                     Nothing ->
-                        [ Font.color Color.dimmedText ]
+                        [ htmlAttribute (Html.Attributes.style "cursor" "default"), Font.color Color.dimmedText ]
                )
             ++ extraBorder
         )
@@ -180,6 +212,24 @@ toolbarButton emphasize symbol desc action =
 
 toolbar : App.Model -> Maybe App.ActiveThread -> Element App.ViewMsg
 toolbar model openThread =
+    let
+        name =
+            case model.openFolder of
+                App.FolderInbox ->
+                    "Inbox"
+
+                App.FolderImportant ->
+                    "Important Messages"
+
+                App.FolderStarred ->
+                    "Starred Messages"
+
+                App.FolderSent ->
+                    "Sent Messages"
+
+                App.FolderAll ->
+                    "All Messages"
+    in
     case openThread of
         Nothing ->
             row []
@@ -195,7 +245,7 @@ toolbar model openThread =
                         toolbarButton False "↓" "Archive" Nothing
             in
             row []
-                [ toolbarButton False "←" "Return to Inbox" (Just App.OpenInbox)
+                [ toolbarButton False "←" ("Return to " ++ name) (Just (App.OpenFolder model.openFolder))
                 , archive
                 ]
 
@@ -242,25 +292,45 @@ getThread threadId model =
             }
 
 
+threadFilter model important props =
+    case model.openFolder of
+        App.FolderInbox ->
+            Props.getFlag "archived" props
+
+        App.FolderImportant ->
+            not important
+
+        App.FolderStarred ->
+            not (Props.getFlag "starred" props)
+
+        App.FolderAll ->
+            False
+
+        App.FolderSent ->
+            -- TODO FIX
+            True
+
+
 threadPreview : App.Model -> App.ActiveThread -> Maybe (Element App.ViewMsg)
 threadPreview model { threadId, contents, state, props } =
-    if Props.getFlag "archived" props then
+    let
+        defaultImportant =
+            case state of
+                App.Waiting ->
+                    False
+
+                App.Ready { responseOptions } ->
+                    responseOptions /= []
+
+        important =
+            Props.getMaybeBool "important" props
+                |> Maybe.withDefault defaultImportant
+    in
+    if threadFilter model important props then
         Nothing
 
     else
         let
-            defaultImportant =
-                case state of
-                    App.Waiting ->
-                        False
-
-                    App.Ready { responseOptions } ->
-                        responseOptions /= []
-
-            important =
-                Props.getMaybeBool "important" props
-                    |> Maybe.withDefault defaultImportant
-
             ( weight, bgColor ) =
                 if Props.getFlag "unread" props then
                     ( Font.bold, Color.white )
@@ -388,17 +458,20 @@ suggestionButton threadId selected suggestionIndex shortMessage =
                 ( Color.suggestionColor, Color.white, Color.uiGray )
     in
     row
-        [ Font.color fontColor
-        , Background.color backgroundColor
-        , Events.onClick (App.Recommendation { threadId = threadId, value = selected |> Util.choose Nothing (Just suggestionIndex) })
-        , Border.color borderColor
-        , Border.solid
-        , Border.width 1
-        , Border.rounded 5
-        , paddingXY 20 10
-        , width shrink
-        , UI.contentFont
-        ]
+        ([ pointer
+         , Font.color fontColor
+         , Background.color backgroundColor
+         , Events.onClick (App.Recommendation { threadId = threadId, value = selected |> Util.choose Nothing (Just suggestionIndex) })
+         , Border.color borderColor
+         , Border.solid
+         , Border.width 1
+         , Border.rounded 5
+         , paddingXY 20 10
+         , width shrink
+         , UI.contentFont
+         ]
+            ++ userSelectNone
+        )
         (viewMarkup shortMessage)
 
 
@@ -483,16 +556,19 @@ viewAttachments model props =
 viewAttachment : App.Model -> Props -> Element App.ViewMsg
 viewAttachment model props =
     row
-        [ width (px 162)
-        , height (px 100)
-        , padding 15
-        , spacing 10
-        , Border.color Color.uiGray
-        , Border.width 1
-        , Border.rounded 5
-        , Background.color Color.white
-        , Events.onClick (App.Attachment (Just props))
-        ]
+        ([ pointer
+         , width (px 162)
+         , height (px 100)
+         , padding 15
+         , spacing 10
+         , Border.color Color.uiGray
+         , Border.width 1
+         , Border.rounded 5
+         , Background.color Color.white
+         , Events.onClick (App.Attachment (Just props))
+         ]
+            ++ userSelectNone
+        )
         [ el [ alignTop ] (Element.html Assets.attachedDocument)
         , paragraph
             [ width fill

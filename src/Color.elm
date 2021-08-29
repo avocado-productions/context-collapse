@@ -31,3 +31,7 @@ suggestionColor =
 modalBackground : Color
 modalBackground =
     rgb255 0 0 0
+
+avocadoHighlight : Color
+avocadoHighlight =
+    rgb255 226 227 121

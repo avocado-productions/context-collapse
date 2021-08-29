@@ -1,6 +1,6 @@
 module AvoComm exposing (..)
 
-import App as App exposing (Model)
+import App as App exposing (Folder, Model)
 import Browser
 import Browser.Navigation as Nav exposing (Key)
 import Cmd.Extra as Cmd
@@ -61,6 +61,7 @@ init script _ key =
             , script = CryptoScript.hashScript script
             , navKey = key
             , attachment = Nothing
+            , openFolder = App.FolderInbox
             }
         |> Cmd.with (Nav.pushUrl key "#/k/inbox/")
 
@@ -152,6 +153,47 @@ openThread id model =
     }
 
 
+decodeFolder : String -> Maybe Folder
+decodeFolder str =
+    case str of
+        "inbox" ->
+            Just App.FolderInbox
+
+        "important" ->
+            Just App.FolderImportant
+
+        "starred" ->
+            Just App.FolderStarred
+
+        "sent" ->
+            Just App.FolderSent
+
+        "all" ->
+            Just App.FolderAll
+
+        _ ->
+            Nothing
+
+
+encodeFolder : Folder -> String
+encodeFolder str =
+    case str of
+        App.FolderInbox ->
+            "inbox"
+
+        App.FolderImportant ->
+            "important"
+
+        App.FolderStarred ->
+            "starred"
+
+        App.FolderSent ->
+            "sent"
+
+        App.FolderAll ->
+            "all"
+
+
 update : App.Msg -> App.Model -> ( App.Model, Cmd App.Msg )
 update msg model =
     case msg of
@@ -166,15 +208,25 @@ update msg model =
 
         App.OnUrlChange url ->
             case Maybe.map (String.split "/") url.fragment of
-                Just [ "", "k", "inbox", "" ] ->
-                    model
-                        |> closeThread
-                        |> Cmd.pure
+                Just [ "", "k", folder, "" ] ->
+                    case decodeFolder folder of
+                        Just f ->
+                            { model | openFolder = f }
+                                |> closeThread
+                                |> Cmd.pure
 
-                Just [ "", "k", "inbox", id ] ->
-                    model
-                        |> openThread id
-                        |> Cmd.pure
+                        Nothing ->
+                            model |> Cmd.with (Nav.pushUrl model.navKey "#/k/inbox/")
+
+                Just [ "", "k", folder, id ] ->
+                    case decodeFolder folder of
+                        Just f ->
+                            { model | openFolder = f }
+                                |> openThread id
+                                |> Cmd.pure
+
+                        Nothing ->
+                            model |> Cmd.with (Nav.pushUrl model.navKey "#/k/inbox/")
 
                 _ ->
                     model |> Cmd.with (Nav.pushUrl model.navKey "#/k/inbox/")
@@ -190,19 +242,28 @@ update msg model =
 
                 Browser.Internal url ->
                     case Maybe.map (String.split "/") url.fragment of
-                        Just [ "", "k", "inbox", "" ] ->
-                            model
-                                |> closeThread
-                                |> Cmd.pure
+                        Just [ "", "k", folder, "" ] ->
+                            case decodeFolder folder of
+                                Just f ->
+                                    { model | openFolder = f }
+                                        |> closeThread
+                                        |> Cmd.pure
 
-                        Just [ "", "k", "inbox", id ] ->
-                            model
-                                |> openThread id
-                                |> Cmd.pure
+                                Nothing ->
+                                    model |> Cmd.with (Nav.pushUrl model.navKey "#/k/inbox/")
+
+                        Just [ "", "k", folder, id ] ->
+                            case decodeFolder folder of
+                                Just f ->
+                                    { model | openFolder = f }
+                                        |> openThread id
+                                        |> Cmd.pure
+
+                                Nothing ->
+                                    model |> Cmd.with (Nav.pushUrl model.navKey "#/k/inbox/")
 
                         _ ->
-                            model 
-                                |> Cmd.with (Nav.pushUrl model.navKey "#/k/inbox/")
+                            model |> Cmd.with (Nav.pushUrl model.navKey "#/k/inbox/")
 
         App.V viewMsg ->
             case viewMsg of
@@ -210,16 +271,16 @@ update msg model =
                     model
                         |> Cmd.pure
 
-                App.OpenInbox ->
+                App.OpenFolder f ->
                     model
                         |> closeThread
-                        |> Cmd.with (Nav.pushUrl model.navKey "#/k/inbox/")
+                        |> Cmd.with (Nav.pushUrl model.navKey ("#/k/" ++ encodeFolder f ++ "/"))
 
                 App.OpenThread { threadId } ->
                     model
                         |> setFlag { threadId = threadId, key = "open", value = True }
                         |> setFlag { threadId = threadId, key = "unread", value = False }
-                        |> Cmd.with (Nav.pushUrl model.navKey ("#/k/inbox/" ++ threadId))
+                        |> Cmd.with (Nav.pushUrl model.navKey ("#/k/" ++ encodeFolder model.openFolder ++ "/" ++ threadId))
 
                 App.Star { threadId, value } ->
                     model
@@ -287,10 +348,9 @@ update msg model =
                                             { responseOptions = responseOptions }
                                     , props =
                                         App.emptyProps
-                                            |> Props.setFlag "archivable" False
+                                            |> Props.setFlag "archivable" archivable
                                             |> Props.setFlag "archived" False
-                                            |> Props.setInt "size" 5000
-                                            -- TODO ^^^^^
+                                            |> Props.setInt "size" size
                                             |> Props.setFlag "starred" False
                                             |> Props.setMaybeBool "important" Nothing
                                             |> Props.setFlag "unread" True
