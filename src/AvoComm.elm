@@ -362,6 +362,9 @@ update msg model =
 
                         newInbox =
                             newThreads |> List.map (\spawnedThread -> { threadId = spawnedThread.threadId })
+
+                        newDict =
+                            List.foldr (\t -> Dict.insert t.threadId t) model.threads newThreads
                     in
                     { model
                         | inbox = newInbox ++ model.inbox
@@ -376,7 +379,7 @@ update msg model =
                                             |> Props.setInt "size"
                                                 (Props.getInt "size" thread.props + 5000 {- TODO Props.getInt "size" response.email.props -})
                                 }
-                                model.threads
+                                newDict
 
                         {- }
                                    -- Replace the appropriate thread with the
