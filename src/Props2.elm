@@ -4,4 +4,4 @@ import Props
 
 
 empty =
-    Props.emptyAbort { todo = Debug.todo }
+    Props.emptySilent

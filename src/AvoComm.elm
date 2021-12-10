@@ -234,10 +234,6 @@ update msg model =
         App.OnUrlRequest request ->
             case request of
                 Browser.External url ->
-                    let
-                        _ =
-                            Debug.log "ignoring exernal link" url
-                    in
                     model |> Cmd.pure
 
                 Browser.Internal url ->
