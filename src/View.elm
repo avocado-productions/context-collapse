@@ -125,7 +125,7 @@ viewAttachmentModal model =
                 thing tp =
                     el
                         [ transparent tp
-                        , width (fill |> maximum 600)
+                        , width (fill |> maximum 700)
                         , height fill
                         , centerX
                         , Background.color Color.white

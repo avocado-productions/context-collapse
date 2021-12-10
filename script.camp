@@ -31,10 +31,6 @@
 # Drinks tonight?
 ! email |> from Erik |> to dslist
 
-! attachment "assets/avocomm-logo.png"
-   |> name "Big Ol' Avocado.pdf"
-   |> size 320000
-
 Do either of you want to grab a drink tonight?
 
 ! respond [Meet somewhere closer?]
